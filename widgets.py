@@ -474,7 +474,6 @@ class _MediaFramework(QtWidgets.QWidget):
         Updates the progress bar percentage.
         :param perc: the percentage to update the bar with. From 0-1 inclusive.
         """
-        #self.pbar.setValue(perc)
         self.pbar.set_progress(perc)
 
     def played(self):
