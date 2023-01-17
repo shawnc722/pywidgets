@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from typing import Union, Callable
+from typing import Union, Callable, Iterable
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath
 from pywidgets.JITstrings import JITstring
@@ -36,10 +36,10 @@ class Window(QtWidgets.QMainWindow):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.central_widget.setLayout(self.layout)
 
-    def finish_init(self, widgets: Union[list, tuple]):
+    def finish_init(self, widgets: Iterable):
         """
         Adds the given pywidgets to the Window and finishes off the setup.
-        :param widgets: any pywidgets to add to the window.
+        :param widgets: any pywidgets to add to the window, containined in a list or similar.
         """
         for widget in widgets:
             self.layout.addWidget(widget)
@@ -77,8 +77,9 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         offset = self.arcsize // 2 + self.arcthic
         self.label.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
         self.label.setAlignment(QtCore.Qt.AlignLeft)
+        self.label.setVAlignment(QtCore.Qt.AlignBottom)
         self.label.setWordWrap(True)
-        self.timer.start(self.update_interval)
+        if self.update_interval: self.timer.start(self.update_interval)
         self.do_cmds()
 
     def paintEvent(self, event):
