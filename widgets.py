@@ -76,8 +76,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.arcsize = height
         offset = self.arcsize // 2 + self.arcthic
         self.label.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
-        self.label.setAlignment(QtCore.Qt.AlignLeft)
-        self.label.setVAlignment(QtCore.Qt.AlignBottom)
+        self.label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignBottom)
         self.label.setWordWrap(True)
         if self.update_interval: self.timer.start(self.update_interval)
         self.do_cmds()
