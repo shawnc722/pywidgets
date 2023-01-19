@@ -49,7 +49,8 @@ class Window(QtWidgets.QMainWindow):
 
 class ProgressArcsWidget(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
-                 height: int = None, update_interval: int = 1000, arccol: QColor = QtCore.Qt.gray, arcthic: int = -1):
+                 title: Union[JITstring, str] = None, height: int = None, update_interval: int = 1000,
+                 arccol: QColor = QtCore.Qt.gray, arcthic: int = -1):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
@@ -58,6 +59,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         :param update_interval: the time in ms between calls to the percs function(s)
         :param arccol: the color of the arcs as a Qt color.
         :param arcthic: the thickness of the arcs in pixels. Leave as -1 to use half the text height, or use None to match text height.
+        :param title: an optional title that sits above the text.
         """
         super().__init__(parent)
         if height is None: height = round(parent.height() / 10)
@@ -72,11 +74,24 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         if arcthic == -1: self.arcthic = round(self.fontMetrics().height()/2)
         elif not arcthic: self.arcthic = self.fontMetrics().height()
         else: self.arcthic = arcthic
-        self.label = QtWidgets.QLabel(self)
+        self.label_wrapper = QtWidgets.QWidget(self)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setDirection(QtWidgets.QBoxLayout.BottomToTop)
+        self.label_wrapper.setLayout(self.layout)
+        self.label = QtWidgets.QLabel(self.label_wrapper)
+        self.label.setContentsMargins(0, 0, 0, 0)
+        self.label_wrapper.setContentsMargins(0, 0, 0, 0)
+        self.layout.addWidget(self.label)
+        self.title = title
+        if title is not None:
+            self.title_label = QtWidgets.QLabel(self.label_wrapper)
+            self.layout.addWidget(self.title_label)
         self.arcsize = height
         offset = self.arcsize // 2 + self.arcthic
-        self.label.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
-        self.label.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignBottom)
+        self.label_wrapper.setFixedWidth(self.width() - offset)
+        self.label_wrapper.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
+        self.label.setAlignment(QtCore.Qt.AlignLeft)
         self.label.setWordWrap(True)
         if self.update_interval: self.timer.start(self.update_interval)
         self.do_cmds()
@@ -97,6 +112,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         else:
             self._percs_now = list(self.percs())
         self.label.setText(str(self.text))
+        if self.title_label: self.title_label.setText(str(self.title))
         self.update()
 
     def arc(self, painter, x, y, w, h, start, span, thickness=8):
@@ -124,13 +140,13 @@ class ProgressArcWidget(QtWidgets.QWidget):
     }
 
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], perc: Callable,
-                 perc_label: Union[JITstring, str] = None, arcpos: str = "top left", height: int = None,
+                 title: Union[JITstring, str] = None, arcpos: str = "top left", height: int = None,
                  update_interval: int = 1000, arccol: QColor = QtCore.Qt.gray, arcthic: int = 8):
         """A widget that displays a percentage value as an arc around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
         :param perc: a function/command that produces something resembling a float between 0 and 100.
-        :param perc_label: short text to put inside the arc.
+        :param title: short text to put inside the arc.
         :param arcpos: where to place the arc on the text box. One of: ['top left', 'top right', 'bottom left', 'bottom right'].
         :param height: the height of the widget in pixels.
         :param update_interval: the time in ms between calls to the perc function
@@ -142,7 +158,7 @@ class ProgressArcWidget(QtWidgets.QWidget):
         self.setFixedSize(parent.width(), height)
         self.text = text
         self.perc = perc
-        self.perc_text = perc_label
+        self.perc_text = title
         self.arcpos = arcpos
         self._perc_now = None
         self.update_interval = update_interval
