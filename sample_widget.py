@@ -16,10 +16,12 @@ widget_list = \
 if cur_OS in ['Windows', 'Linux']:  # no media pywidgets for mac yet
     widget_list += [pywidgets.MediaListWidget(window), pywidgets.HrWidget()]
 
-blkstr = JITstring(pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disks mountpoint']], "Disk Usage:"),
+blkstr = JITstring(pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disks mountpoint']]),
                    [i for l in zip(disk_cmds['disks used'], disk_cmds['disks total']) for i in l])
+
 widget_list += \
-    [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], update_interval=2000, arcthic=16),
+    [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], "<b>Disk Usage</b>",
+                                  update_interval=2000, arcthic=16),
      pywidgets.HrWidget()]
 
 widget_list += \
@@ -36,9 +38,8 @@ if 'GPU 0:' in BashCmd("nvidia-smi -L"):  # if the list of nvidia gpus returns a
         [nvidia_cmds['GPU']['usage'], nvidia_cmds['GPU']['temp'],
          PyCmd(lambda x: ["no", "yes"][str(x) != "Not Active"], nvidia_cmds['GPU']['throttling']),
          nvidia_cmds['clocks']['graphics clock freq'], nvidia_cmds['power']['draw'], nvidia_cmds['power']['limit']])
-    widget_list.append(pywidgets.ProgressArcsWidget(window, gpustr,
-                                                    [numbers_only_fn(nvidia_cmds['GPU']['usage'])],
-                                                    update_interval=500))
+    widget_list.append(pywidgets.ProgressArcWidget(window, gpustr, numbers_only_fn(nvidia_cmds['GPU']['usage']),
+                                                   "<b>GPU Usage</b>", update_interval=500))
 
 if cur_OS == 'Linux':
     from pywidgets.sample_data import temp_cmds

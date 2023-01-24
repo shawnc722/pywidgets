@@ -553,15 +553,7 @@ def html_table(array: list, title='', right_td_style: str = "text-align:right;")
         table += f'<tr><td>{row[0]}</td><td style="{right_td_style}">{row[1]}</td></tr>'
     table += '</table>'
     return table
-def test_html_table(array: list, title='', left_td_style: str = None, right_td_style: str = "text-align:right;") -> str:
-    table = f'{title}<table width=100%'
-    if right_td_style or left_td_style: table += ' style="'
-    if left_td_style: table += '.left{' + left_td_style + '} '
-    if right_td_style: table += '.right{' + right_td_style + '} '
-    table += '">'
-    for row in array:
-        table += f'<tr><td class="left">{row[0]}</td><td class="right">{row[1]}</td></tr>'
-    return table + '</table>'
+
 
 def get_application(*args, **kwargs) -> QtWidgets.QApplication:
     """
