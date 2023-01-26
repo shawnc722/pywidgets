@@ -528,14 +528,17 @@ class HrWidget(QtWidgets.QFrame):
 
 
 class TextWidget(QtWidgets.QLabel):
-    def __init__(self, text: Union[JITstring, str], alignment: str = "Center", wordwrap: bool = True):
+    def __init__(self, parent, text: Union[JITstring, str] = None, alignment: str = "Center", wordwrap: bool = True):
         """
         A simple widget for showing text; really just a convenience wrapper for a QLabel.
+        :param parent: the parent widget containing this one.
         :param text: the text to be displayed.
         :param alignment: the alignment style for the text; any of Qt's values, such as "Center", "Left", "Right", etc.
         :param wordwrap: whether word wrap should be enabled for the text.
         """
-        super().__init__(text=text)
+        super().__init__(parent, text=text)
+        if text is None: super().__init__(parent)
+        else: super().__init__(text, parent)
         self.setWordWrap(wordwrap)
         self.setAlignment(getattr(QtCore.Qt, "Align" + alignment))
 

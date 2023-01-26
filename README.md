@@ -4,7 +4,7 @@ PyWidgets is a desktop widget manager using Qt and Python, built to be cross-pla
 Widgets are a small window of their own which can display a certain type of information (text, times, numbers, etc.) in a given style.
 A sample widget is included to show the capabilities without any coding required, but the intent is for users to extend the project through adding new data sources (requiring minimal coding) or designing new widgets (requiring coding and/or Qt familiarity) or both.
 
-![sample widget image](somefile.jpg "An example of a widget setup")
+![sample widget image](sample_widget_example.jpg "An example of a widget setup")
 ## Examples
 
 **Combining pre-made data sources and widgets:**  
@@ -23,7 +23,8 @@ widget_list = [widget]  # normally you'd have more than one
 window.finish_init(widget_list)
 exit(app.exec())
 ```
-[picture of resulting GraphWidget]
+This code results in the following widget:  
+![Image of above widget](graph_widget_example.jpg "The widget created by the code above")
 ## Features
 * Cross-platform - the same widget setup can work between Linux/Windows dual boots, and/or can be used on a Mac.
 * Customizable sources - any data you can access from python or from the terminal can be displayed.
