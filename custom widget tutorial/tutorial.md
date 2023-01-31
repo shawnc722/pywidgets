@@ -89,13 +89,14 @@ def do_cmds(self):
 Now we have half of our clock widget: the text shows the date and time, and updates automatically.  
 To make the clock portion, we'll need to override the `paintEvent()` method, which is triggered when 
 we call `self.update()` every second.  
-Inside this method, we should prepare to draw using Qt's QtGui tools:
+Inside this method, we should prepare to draw using Qt's QtGui tools. You can play with some of these values 
+to vary the look:
 ```python3
 def paintEvent(self, event):
     painter = QtGui.QPainter(self)
     painter.setRenderHint(QtGui.QPainter.Antialiasing)
     color = QtCore.Qt.gray
-    thickness = 12  # pixels
+    thickness = round(self.height() / 18)  # pixels, use 1/18th of height so that it scales
     style = QtCore.Qt.SolidLine
     pen = QtGui.QPen(color, thickness, style)
     painter.setPen(pen)

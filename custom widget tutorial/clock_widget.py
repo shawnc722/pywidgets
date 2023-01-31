@@ -39,7 +39,7 @@ class ClockWidget(QWidget):
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.Antialiasing)
         color = QtCore.Qt.gray
-        thickness = 12  # pixels
+        thickness = round(self.height() / 18)  # pixels, use 1/18th of height so that it scales
         style = QtCore.Qt.SolidLine
         pen = QtGui.QPen(color, thickness, style)
         painter.setPen(pen)

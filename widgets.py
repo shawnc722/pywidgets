@@ -322,7 +322,7 @@ class GraphWidget(pg.PlotWidget):
 
     def update_plot_data(self):
         self.ys.pop(0)
-        self.ys.append(float(self.getdata()))
+        self.ys.append(float(self.getdata))
         self.data_line.setData(self.xs, self.ys)
 
 
