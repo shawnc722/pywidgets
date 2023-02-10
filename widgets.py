@@ -77,6 +77,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.label_wrapper = QtWidgets.QWidget(self)
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
         self.layout.setDirection(QtWidgets.QBoxLayout.BottomToTop)
         self.label_wrapper.setLayout(self.layout)
         self.label = QtWidgets.QLabel(self.label_wrapper)
