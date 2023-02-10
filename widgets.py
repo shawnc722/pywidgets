@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.8
 from typing import Union, Callable, Iterable
 from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath
@@ -112,7 +112,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         else:
             self._percs_now = list(self.percs())
         self.label.setText(str(self.text))
-        if self.title_label: self.title_label.setText(str(self.title))
+        if hasattr(self, 'title_label'): self.title_label.setText(str(self.title))
         self.update()
 
     def arc(self, painter, x, y, w, h, start, span, thickness=8):
