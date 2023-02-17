@@ -2,7 +2,7 @@ import pywidgets
 from clock_widget import ClockWidget
 
 app = pywidgets.get_application()
-window = pywidgets.get_window()
-widget_list = [ClockWidget(window)]
-window.finish_init(widget_list)
+window = pywidgets.get_window(app)
+window.add_widget(ClockWidget(window))
+window.finish_init()
 exit(app.exec())

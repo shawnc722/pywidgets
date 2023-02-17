@@ -158,7 +158,7 @@ def paintEvent(self, event):
 That completes our basic clock widget, although it could benefit from many little tweaks like 
 adding a second hand, using different thicknessess/colors, and/or rounding the edges of the lines.  
 ![The final result](clock_widget_final.jpg "A picture of the completed widget")  
-Using the new widget is the same as any other widget: just import it, add it to the list, and call 
-`finish_init()` on the window with your widget list as the argument.  
+Using the new widget is the same as any other widget: just import it, add it to your window with add_widget(), and call 
+`finish_init()` on the window.  
 After this tutorial, you hopefully understand the basic idea behind these widgets and the use of JITstrings, 
 and are prepared for learning more Qt5 tools to make more complex widgets.

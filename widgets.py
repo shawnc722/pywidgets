@@ -6,16 +6,19 @@ from pywidgets.JITstrings import JITstring
 import pyqtgraph as pg
 from math import asin, cos
 
-
 class Window(QtWidgets.QMainWindow):
-    def __init__(self, width: int, height: int, color: str = "grey", font_size: str = "18px"):
+    def __init__(self, width: int, height: int, color: str = "grey", font_family: str = "Monospace, Play-Regular",
+                 font_size: str = "18px", maintain_position: str = "bottom"):
         """
         The main window containing all your pywidgets. After instantiating one of these,
-        call finish_init() with a list of the pywidgets you want in the window to complete the setup.
+        call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
         :param width: the width of the window in pixels.
         :param height: the height of the window in pixels.
         :param color: the default color. Accepts css colors.
+        :param font_family: the default font to use, in css terms.
         :param font_size: the size of font to use, in qt's limited css terms (e.g. 18px or 12pt)
+        :param maintain_position: where the window should stay - "bottom" to appear part of the desktop, "top" to stay
+            on top, or "default" to behave like a normal window.
         """
         super().__init__()
         self.central_widget = None
@@ -24,26 +27,50 @@ class Window(QtWidgets.QMainWindow):
         self.setWindowTitle(self.title)
         self.setFixedSize(width, height)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnBottomHint)
+        flags = QtCore.Qt.FramelessWindowHint
+        if maintain_position.lower() == 'bottom': flags = flags | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnBottomHint
+        elif maintain_position.lower() == 'top': flags = flags | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint
+        self.setWindowFlags(flags)
         self.setStyleSheet("""
                     color: {}; 
-                    font-family: Monospace, Play-Regular; 
+                    font-family: {}; 
                     font-size: {};
-                    """.format(color, font_size))
+                    """.format(color, font_family, font_size))
         self.central_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.central_widget)
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.central_widget.setLayout(self.layout)
+        self.widgets = []
 
-    def finish_init(self, widgets: Iterable):
+    def add_widget(self, widget, *args) -> None:
         """
-        Adds the given pywidgets to the Window and finishes off the setup.
-        :param widgets: any pywidgets to add to the window, containined in a list or similar.
+        Stores the given widget for adding to the main layout, with the given args.
+        :param widget: the widget to add.
+        :param args: any optional arguments to the layout.addWidget() call, ie stretch, row/col number, etc.
+        """
+        self.widgets.append((widget, *args))
+
+    def add_widgets(self, widgets) -> None:
+        """
+        Similar to add_widget, but for multiple inputs at once.
+        :param widgets: Either a list of widgets, or a list of lists of the format [[widget, *args], ...]
         """
         for widget in widgets:
-            self.layout.addWidget(widget)
-        self.layout.addStretch()
+            if not hasattr(widget, '__next__'): self.widgets.append((widget, ))  # if it's not iterable, wrap in tuple
+            else: self.widgets.append(widget)  # if 'widget' is iterable, assuming it matches the [widget, *args] format
+
+    def finish_init(self, layout = None, add_stretch: bool = True) -> None:
+        """
+        Adds the stored pywidgets to the Window and finishes off the setup. Uses a custom layout if provided.
+        :param layout: a Qt layout to use for the widgets.
+        :param add_stretch: whether to pad the end of the layout with blank space to condense the widgets. Only works with
+            certain types of layouts.
+        """
+        if layout is None:
+            layout = QtWidgets.QVBoxLayout()
+            layout.setContentsMargins(0, 0, 0, 0)
+        self.layout = layout
+        self.central_widget.setLayout(self.layout)
+        for widget in self.widgets: self.layout.addWidget(*widget)
+        if add_stretch: self.layout.addStretch()
         self.show()
 
 
@@ -567,18 +594,24 @@ def get_application(*args, **kwargs) -> QtWidgets.QApplication:
     return QtWidgets.QApplication(*args, **kwargs) if args or kwargs else QtWidgets.QApplication([])
 
 
-def get_window(width: int = None, offset: int = 1, font_size: str = None, **kwargs) -> Window:
+def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", offset: int = 1, font_size: str = None, **kwargs) -> Window:
     """
     A wrapper function for creating a new window with dimensions {width} by your screen height on the right edge of the screen.
     Any other keyword arguments passed to this function will be passed on to the Window class.
-    :param width: the width the new window should have, in pixels.
-    :param offset: the amount of pixels left the window should be moved to account for how visible the edge is.
+    :param app: the QApplication instance, can be created with get_application() as a convenience wrapper.
+    :param width: the width the new window should have, in pixels, or one of the strings "default" (for ~1/8th width) or "max".
+    :param offset: the amount of pixels left the window should be moved to account for how visible the edge is. Ignored if width is max.
     :param font_size: the size of font to use for the window and any sub-pywidgets that don't explicitly set their own. Uses css sizes, e.g. 12pt, and is auto-set from screen height.
     :return: the new Window instance.
     """
-    window_dims = QtWidgets.QDesktopWidget().availableGeometry()
+    window_dims = app.primaryScreen().availableGeometry()
     height = window_dims.height()
-    if width is None: width = round(window_dims.width()*17/128)  # a bit wider than 1/8th of the screen. 4K->510px
+    if type(width) == str:
+        if width.lower() == "default": width = round(window_dims.width()*17/128)  # a bit wider than 1/8th of the screen. 4K->510px
+        elif width.lower() == "max":
+            width = window_dims.width()
+            offset = 0
+        else: raise ValueError(f"No preset width corresponding to given argument {width} in get_window().")
     if font_size is None: font_size = f"{round(window_dims.height()/120)}px"
     window = Window(width, height, font_size=font_size, **kwargs)
     window.move(QtWidgets.QDesktopWidget().availableGeometry().width() - width - offset, 0)
