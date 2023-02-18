@@ -7,16 +7,13 @@ import pyqtgraph as pg
 from math import asin, cos
 
 class Window(QtWidgets.QMainWindow):
-    def __init__(self, width: int, height: int, color: str = "grey", font_family: str = "Monospace, Play-Regular",
-                 font_size: str = "18px", maintain_position: str = "bottom"):
+    def __init__(self, width: int, height: int, stylesheet: str = "default", maintain_position: str = "bottom"):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
         :param width: the width of the window in pixels.
         :param height: the height of the window in pixels.
-        :param color: the default color. Accepts css colors.
-        :param font_family: the default font to use, in css terms.
-        :param font_size: the size of font to use, in qt's limited css terms (e.g. 18px or 12pt)
+        :param stylesheet: a css stylesheet for all the widgets - usually contains at least a color and a font-family.
         :param maintain_position: where the window should stay - "bottom" to appear part of the desktop, "top" to stay
             on top, or "default" to behave like a normal window.
         """
@@ -31,11 +28,9 @@ class Window(QtWidgets.QMainWindow):
         if maintain_position.lower() == 'bottom': flags = flags | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnBottomHint
         elif maintain_position.lower() == 'top': flags = flags | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint
         self.setWindowFlags(flags)
-        self.setStyleSheet("""
-                    color: {}; 
-                    font-family: {}; 
-                    font-size: {};
-                    """.format(color, font_family, font_size))
+        if stylesheet == 'default':
+            stylesheet = f"color: grey; font-family: Monospace, Play-Regular; font-size: {round(self.height() / 120)}px;"
+        self.setStyleSheet(stylesheet)
         self.central_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.central_widget)
         self.widgets = []
@@ -603,14 +598,15 @@ def get_application(*args, **kwargs) -> QtWidgets.QApplication:
     return QtWidgets.QApplication(*args, **kwargs) if args or kwargs else QtWidgets.QApplication([])
 
 
-def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", offset: int = 1, font_size: str = None, **kwargs) -> Window:
+def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", offset: int = 1,
+               stylesheet: str = "default", **kwargs) -> Window:
     """
     A wrapper function for creating a new window with dimensions {width} by your screen height on the right edge of the screen.
     Any other keyword arguments passed to this function will be passed on to the Window class.
     :param app: the QApplication instance, can be created with get_application() as a convenience wrapper.
     :param width: the width the new window should have, in pixels, or one of the strings "default" (for ~1/8th width) or "max".
     :param offset: the amount of pixels left the window should be moved to account for how visible the edge is. Ignored if width is max.
-    :param font_size: the size of font to use for the window and any sub-pywidgets that don't explicitly set their own. Uses css sizes, e.g. 12pt, and is auto-set from screen height.
+    :param stylesheet: a css stylesheet for the window to use.
     :return: the new Window instance.
     """
     window_dims = app.primaryScreen().availableGeometry()
@@ -621,7 +617,6 @@ def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", 
             width = window_dims.width()
             offset = 0
         else: raise ValueError(f"No preset width corresponding to given argument {width} in get_window().")
-    if font_size is None: font_size = f"{round(window_dims.height()/120)}px"
-    window = Window(width, height, font_size=font_size, **kwargs)
+    window = Window(width, height, stylesheet, **kwargs)
     window.move(QtWidgets.QDesktopWidget().availableGeometry().width() - width - offset, 0)
     return window

@@ -9,15 +9,14 @@ cur_OS = system()
 BYTES_PER_MEGABIT = 131072
 
 
-def _test_cmds(cmds):
+def _test_cmds(cmds, title=None, layer=0):
     """Prints output of given commands to test compatibility."""
+    if title is not None: print(layer * '  ' + title)
     for k, v in cmds.items():
         if type(v) == dict:
-            print('-' * 80, k, sep='\n')
-            _test_cmds(v)
-            print('-' * 80)
+            _test_cmds(v, k, layer + 1)
             continue
-        print(f"{k}:  {v}")
+        print((layer + 1) * "  " + f"{k}:  {v}")
 
 
 def _nvidiainfo(query):
@@ -176,13 +175,9 @@ all_cmds = {
 
 if __name__ == "__main__":
     # if this is run on its own, test all the commands and print results.
-    try:
-        _test_cmds(system_strings)
-    except Exception as e:
-        print("Error in system strings:", e)
-    for key, item in {"CPU commands": cpu_cmds, "Memory commands": mem_cmds, "Nvidia commands": nvidia_cmds,
-                      "Disk commands": disk_cmds, "Network commands": net_cmds}.items():
+    for key, item in all_cmds.items():
         try:
-            _test_cmds(item)
+            _test_cmds(item, title=f"{key}:")
+            print()
         except Exception as e:
             print("Error in", key, e)

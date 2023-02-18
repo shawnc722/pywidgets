@@ -47,18 +47,19 @@ This project can be installed as a package or run in place. To install as a pack
 from the [releases](https://github.com/shawnc722/pywidgets/releases) section and install it, plus dependencies,
 with `pip install [filename]`. To run it in place, first install all the dependencies from the requirements 
 section and then clone the project with `git clone https://github.com/shawnc722/pywidgets.git`.  
-To start up the sample widget, just run the module: `python -m pywidgets`. 
-
-Provide code examples and explanations of how to get the project, e.g.,
-
-	git clone https://github.com/Jasonnor/README.md.git
-    cd README.md
-    npm install README.md
-    npm start
+To start up the sample widget, just run the module: `python -m pywidgets`.
 
 ## Usage
 
-Show how to use the project or library.
+This project can be used as-is via `python -m pywidgets`, customized using existing widgets 
+and data sources, and/or extended with new widgets and data sources. The `pywidgets.sample_data` 
+module provides some data sources to get you started - to see which ones and their current 
+values, run it in your console with `python -m pywidgets.sample_data`. Once you've chosen a 
+data source to use - for example let's go with `overall usage` from the `cpu cmds` section - 
+we just need to use the titles and name to find it in `sample_data`'s `all_cmds` dict. For our 
+example, that means we want `sample_data.all_cmds['cmd cmds']['overall usage']`, which returns
+a [PyCmd](todo) corresponding to the current total CPU usage of the system. 
+
     
 ## Reference
 
@@ -74,4 +75,5 @@ Pull requests are great if you have code to add/edit, and otherwise creating an 
 ## License
 
 This project uses Qt, so [their license](https://www.qt.io/licensing/) affects it.
-Otherwise, you can do whatever you want with this project as far as I'm concerned. The only thing I'd ask is if you make something cool, please share it so others can use it too.
+Otherwise, you can do whatever you want with this project as far as I'm concerned. The only thing I'd ask is if you make 
+something cool, please share it so others can use it too.
