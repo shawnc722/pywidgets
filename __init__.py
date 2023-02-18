@@ -10,3 +10,4 @@ elif sys.platform == "win32":
     from pywidgets.windowsmediawidget import MediaListWidget
 elif sys.platform == "darwin":
     pass
+

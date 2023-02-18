@@ -204,7 +204,7 @@ class ProgressArcWidget(QtWidgets.QWidget):
         self.label.setWordWrap(True)
         self.arclabel = QtWidgets.QLabel(self)
         lh = self.arcsize // 8
-        self.arclabel.setStyleSheet(f"font-size: {lh}px;")
+        self.arclabel.setStyleSheet(f"line-height: {lh}px;")  # doesn't seem to be working
         self.arclabel.setScaledContents(True)
         padding = 2
         lw = round(self.arcsize * cos(asin(lh*padding / self.arcsize)))
@@ -556,19 +556,28 @@ class HrWidget(QtWidgets.QFrame):
 
 
 class TextWidget(QtWidgets.QLabel):
-    def __init__(self, parent, text: Union[JITstring, str] = None, alignment: str = "Center", wordwrap: bool = True):
+    def __init__(self, parent, text: Union[JITstring, str] = None, alignment: str = "Center", wordwrap: bool = True, update_interval: int = None):
         """
-        A simple widget for showing text; really just a convenience wrapper for a QLabel.
+        A simple widget for showing text; can be a dynamic JITstring or regular static text.
         :param parent: the parent widget containing this one.
         :param text: the text to be displayed.
         :param alignment: the alignment style for the text; any of Qt's values, such as "Center", "Left", "Right", etc.
         :param wordwrap: whether word wrap should be enabled for the text.
+        :param update_interval: how often to refresh the text, if it's dynamic. Leave as None for static text.
         """
-        super().__init__(parent, text=text)
         if text is None: super().__init__(parent)
-        else: super().__init__(text, parent)
+        else: super().__init__(str(text), parent)
         self.setWordWrap(wordwrap)
         self.setAlignment(getattr(QtCore.Qt, "Align" + alignment))
+        if update_interval is not None:
+            self.get_text = text
+            self.timer = QtCore.QTimer()
+            self.timer.timeout.connect(self.do_cmds)
+            self.timer.start(update_interval)
+
+    def do_cmds(self):
+        self.setText(str(self.get_text))
+
 
 
 def html_table(array: list, title='', right_td_style: str = "text-align:right;") -> str:

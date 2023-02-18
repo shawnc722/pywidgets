@@ -4,7 +4,7 @@ PyWidgets is a desktop widget manager using Qt and Python, built to be cross-pla
 Widgets are a small window of their own which can display a certain type of information (text, times, numbers, etc.) in a given style.
 A sample widget is included to show the capabilities without any coding required, but the intent is for users to extend the project through adding new data sources (requiring minimal coding) or designing new widgets (requiring coding and/or Qt familiarity) or both.
 
-![sample widget image](sample_widget_example.jpg "An example of a widget setup")
+![sample widget image](sample_widget_example_linux.jpg "An example of a widget setup")
 ## Examples
 
 **Combining pre-made data sources and widgets:**  
@@ -18,9 +18,9 @@ window = pywidgets.get_window()
 data = cpu_cmds["overall usage"]
 display_string = "CPU usage"
 widget = pywidgets.GraphWidget(window, display_string, data)
-widget_list = [widget]  # normally you'd have more than one
 
-window.finish_init(widget_list)
+window.add_widget(widget)
+window.finish_init()
 exit(app.exec())
 ```
 This code results in the following widget:  
@@ -42,6 +42,12 @@ Lots of widget solutions exist purely for Windows, but overall they lacked the c
 * winsdk (if you're using Windows and want the now playing widget to work)
 
 ## Installation or Getting Started
+
+This project can be installed as a package or run in place. To install as a package, download the latest wheel 
+from the [releases](https://github.com/shawnc722/pywidgets/releases) section and install it, plus dependencies,
+with `pip install [filename]`. To run it in place, first install all the dependencies from the requirements 
+section and then clone the project with `git clone https://github.com/shawnc722/pywidgets.git`.  
+To start up the sample widget, just run the module: `python -m pywidgets`. 
 
 Provide code examples and explanations of how to get the project, e.g.,
 
