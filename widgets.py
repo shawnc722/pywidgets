@@ -459,7 +459,7 @@ class _MediaFramework(QtWidgets.QWidget):
         for but, fn in zip(self.buttons, (self.do_prev, self.do_playpause, self.do_next)):
             but.clicked.connect(fn)
 
-        self.pbar = ProgressBarWidget(self, height=self.height()//2.5)
+        self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5))
         pol = self.pbar.sizePolicy()
         pol.setRetainSizeWhenHidden(True)
         self.pbar.setSizePolicy(pol)

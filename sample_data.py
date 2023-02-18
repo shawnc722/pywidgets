@@ -151,7 +151,7 @@ net_cmds = {
     "total net max speed": PyCmd(net_if_stats, postformat_fn=lambda x: sum(v.speed * BYTES_PER_MEGABIT
                                                                            for k, v in x.items()))
 }
-
+temp_cmds = {}  # placeholder
 if cur_OS == "Linux":
     from psutil import sensors_temperatures
     # these are gonna be filled with device names and labels, could be different for each system.
@@ -161,7 +161,9 @@ if cur_OS == "Linux":
     temp_cmds = {f"{k} {label}": PyCmd(v, get_attr=label) for k, v in temp_cmds.items()
                  for label in ["current", "high", "critical"]}
 
-
+if cur_OS == "Windows":
+    temp_cmds = {"test output":  # not supported on all systems, some it may also not update or require admin
+                     BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature")}
 system_strings = populate_runtime_strs(system_strings)
 
 all_cmds = {
@@ -170,7 +172,8 @@ all_cmds = {
     "mem cmds": mem_cmds,
     "nvidia cmds": nvidia_cmds,
     "disk cmds": disk_cmds,
-    "net cmds": net_cmds
+    "net cmds": net_cmds,
+    "temp cmds": temp_cmds
 }
 
 if __name__ == "__main__":
