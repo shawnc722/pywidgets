@@ -39,7 +39,7 @@ Lots of widget solutions exist purely for Windows, but overall they lacked the c
 * PyQt5
 * psutil
 * pyqtgraph
-* winsdk (if you're using Windows and want the now playing widget to work)
+* winsdk and qasync (if you're using Windows and want the now playing widget to work)
 
 ## Installation or Getting Started
 
