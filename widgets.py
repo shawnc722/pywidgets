@@ -1,10 +1,11 @@
 #!/usr/bin/python3.8
-from typing import Union, Callable, Iterable
-from PyQt5 import QtWidgets, QtCore
-from PyQt5.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath
+from typing import Union, Callable
+from PyQt6 import QtWidgets, QtCore
+from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath
 from pywidgets.JITstrings import JITstring
 import pyqtgraph as pg
 from math import asin, cos
+
 
 class Window(QtWidgets.QMainWindow):
     def __init__(self, width: int, height: int, stylesheet: str = "default", maintain_position: str = "bottom"):
@@ -23,10 +24,11 @@ class Window(QtWidgets.QMainWindow):
         self.title = "PyWidget"
         self.setWindowTitle(self.title)
         self.setFixedSize(width, height)
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        flags = QtCore.Qt.FramelessWindowHint
-        if maintain_position.lower() == 'bottom': flags = flags | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnBottomHint
-        elif maintain_position.lower() == 'top': flags = flags | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
+        types = QtCore.Qt.WindowType
+        flags = types.FramelessWindowHint
+        if maintain_position.lower() == 'bottom': flags = flags | types.Tool | types.WindowStaysOnBottomHint
+        elif maintain_position.lower() == 'top': flags = flags | types.Tool | types.WindowStaysOnTopHint
         self.setWindowFlags(flags)
         if stylesheet == 'default':
             stylesheet = f"color: grey; font-family: Monospace, Play-Regular; font-size: {round(self.height() / 120)}px;"
@@ -52,7 +54,7 @@ class Window(QtWidgets.QMainWindow):
             if not hasattr(widget, '__next__'): self.widgets.append((widget, ))  # if it's not iterable, wrap in tuple
             else: self.widgets.append(widget)  # if 'widget' is iterable, assuming it matches the [widget, *args] format
 
-    def finish_init(self, layout = None, add_stretch: bool = True) -> None:
+    def finish_init(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True) -> None:
         """
         Adds the stored pywidgets to the Window and finishes off the setup. Uses a custom layout if provided.
         :param layout: a Qt layout to use for the widgets.
@@ -72,7 +74,7 @@ class Window(QtWidgets.QMainWindow):
 class ProgressArcsWidget(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
                  title: Union[JITstring, str] = None, height: int = None, update_interval: int = 1000,
-                 arccol: QColor = QtCore.Qt.gray, arcthic: int = -1):
+                 arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: int = -1):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
@@ -100,7 +102,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
-        self.layout.setDirection(QtWidgets.QBoxLayout.BottomToTop)
+        self.layout.setDirection(self.layout.Direction.BottomToTop)
         self.label_wrapper.setLayout(self.layout)
         self.label = QtWidgets.QLabel(self.label_wrapper)
         self.label.setContentsMargins(0, 0, 0, 0)
@@ -114,14 +116,14 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         offset = self.arcsize // 2 + self.arcthic
         self.label_wrapper.setFixedWidth(self.width() - offset)
         self.label_wrapper.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
-        self.label.setAlignment(QtCore.Qt.AlignLeft)
+        self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.label.setWordWrap(True)
         if self.update_interval: self.timer.start(self.update_interval)
         self.do_cmds()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         for i, perc in enumerate(self._percs_now):
             offset = self.arcthic // 2 + i * (self.arcthic + self.arcthic // 4)
             arcsize = self.arcsize - offset * 2
@@ -150,7 +152,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         :param span: the angle (in degrees) the arc should span in total.
         :param thickness: the line thickness to use for the arc, in pixels.
         """
-        painter.setPen(QPen(self.arccol, thickness, QtCore.Qt.SolidLine))
+        painter.setPen(QPen(self.arccol, thickness, QtCore.Qt.PenStyle.SolidLine))
         painter.drawArc(x, y, w, h, start * 16, span * 16)
 
 
@@ -164,7 +166,7 @@ class ProgressArcWidget(QtWidgets.QWidget):
 
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], perc: Callable,
                  title: Union[JITstring, str] = None, arcpos: str = "top left", height: int = None,
-                 update_interval: int = 1000, arccol: QColor = QtCore.Qt.gray, arcthic: int = 8):
+                 update_interval: int = 1000, arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: int = 8):
         """A widget that displays a percentage value as an arc around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
@@ -195,7 +197,7 @@ class ProgressArcWidget(QtWidgets.QWidget):
         x = 0 if 'right' in self.arcpos else offset
         y = 0 if 'bottom' in self.arcpos else offset
         self.label.setGeometry(x, y, self.width() - offset, self.height() - offset)
-        self.label.setAlignment(QtCore.Qt.AlignLeft)
+        self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
         self.label.setWordWrap(True)
         self.arclabel = QtWidgets.QLabel(self)
         lh = self.arcsize // 8
@@ -206,13 +208,13 @@ class ProgressArcWidget(QtWidgets.QWidget):
         x = offset - round(lw/2) if 'left' in arcpos else self.width() - offset - round(lw/2)
         y = offset - round(lh * padding) if 'top' in arcpos else self.height() - offset + padding
         self.arclabel.setGeometry(x, y, lw, lh*padding)
-        self.arclabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.arclabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.timer.start(self.update_interval)
         self.do_cmds()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         offset = self.arcthic // 2
         arcsize = self.arcsize - offset * 2
         x = self.width() - offset - arcsize if 'right' in self.arcpos else offset
@@ -240,13 +242,13 @@ class ProgressArcWidget(QtWidgets.QWidget):
         :param span: the angle (in degrees) the arc should span in total.
         :param thickness: the line thickness to use for the arc, in pixels.
         """
-        painter.setPen(QPen(self.arccol, thickness, QtCore.Qt.SolidLine))
+        painter.setPen(QPen(self.arccol, thickness, QtCore.Qt.PenStyle.SolidLine))
         painter.drawArc(x, y, w, h, start * 16, span * 16)
 
 
 class ProgressBarWidget(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, perc: Callable = None, height: int = None, update_interval: int = None,
-                 barcol: QColor = QtCore.Qt.white, bgcol: QColor = QtCore.Qt.gray, squareness: float = 3):
+                 barcol: QColor = QtCore.Qt.GlobalColor.white, bgcol: QColor = QtCore.Qt.GlobalColor.gray, squareness: float = 3):
         """A progress bar that can be manually updated or given a command and an update interval for automatic updates.
         :param parent: the parent widget of this widget, usually a sub-widget of the main window.
         :param perc: a function/command that produces a float between 0 and 1.
@@ -286,7 +288,7 @@ class ProgressBarWidget(QtWidgets.QWidget):
         w, h = self.width(), self.height()
         rad = round(h/self.squareness)
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         path = QPainterPath()
         path.addRoundedRect(0, 0, w, h, rad, rad)
         painter.fillPath(path, self.bgcol)
@@ -345,7 +347,7 @@ class GraphWidget(pg.PlotWidget):
 
     def update_plot_data(self):
         self.ys.pop(0)
-        self.ys.append(float(self.getdata))
+        self.ys.append(float(self.getdata()))
         self.data_line.setData(self.xs, self.ys)
 
 
@@ -545,9 +547,9 @@ class HrWidget(QtWidgets.QFrame):
         super().__init__()
         self.setMinimumWidth(1)
         self.setFixedHeight(height)
-        self.setFrameShape(QtWidgets.QFrame.HLine)
-        self.setFrameShadow(QtWidgets.QFrame.Sunken)
-        self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+        self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
 
 
 class TextWidget(QtWidgets.QLabel):
@@ -563,7 +565,7 @@ class TextWidget(QtWidgets.QLabel):
         if text is None: super().__init__(parent)
         else: super().__init__(str(text), parent)
         self.setWordWrap(wordwrap)
-        self.setAlignment(getattr(QtCore.Qt, "Align" + alignment))
+        self.setAlignment(getattr(QtCore.Qt.AlignmentFlag, "Align" + alignment))
         if update_interval is not None:
             self.get_text = text
             self.timer = QtCore.QTimer()
@@ -572,7 +574,6 @@ class TextWidget(QtWidgets.QLabel):
 
     def do_cmds(self):
         self.setText(str(self.get_text))
-
 
 
 def html_table(array: list, title='', right_td_style: str = "text-align:right;") -> str:
@@ -618,5 +619,5 @@ def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", 
             offset = 0
         else: raise ValueError(f"No preset width corresponding to given argument {width} in get_window().")
     window = Window(width, height, stylesheet, **kwargs)
-    window.move(QtWidgets.QDesktopWidget().availableGeometry().width() - width - offset, 0)
+    window.move(window_dims.width() - width - offset, 0)
     return window

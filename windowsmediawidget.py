@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 from datetime import datetime
-from PyQt5.QtGui import QPixmap
+from PyQt6.QtGui import QPixmap
 from pywidgets.widgets import _MediaListFramework, _MediaFramework
-import qasync
 
 import asyncio
 # from https://stackoverflow.com/questions/71005262/event-handling-with-winrt-for-python
@@ -81,7 +80,7 @@ class MediaListWidget(_MediaListFramework):
             del widg
         self.update()
 
-    def sessions_changed(self, manager: SessionManager, args: SessionsChangedEventArgs) -> None:
+    def sessions_changed(self, manager: SessionManager, args: SessionsChangedEventArgs = None) -> None:
         sessionsl = manager.get_sessions()
         sessions = {s.source_app_user_model_id: s for s in sessionsl}
         new_sessions = [sessions[session] for session in sessions.keys() if session not in self.sessions]  # list of sessions

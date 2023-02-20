@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QWidget
-from PyQt5 import QtGui, QtCore
+from PyQt6.QtWidgets import QWidget
+from PyQt6 import QtGui, QtCore
 from pywidgets.JITstrings import JITstring, PyCmd
 from pywidgets.widgets import TextWidget
 from datetime import datetime
@@ -37,10 +37,10 @@ class ClockWidget(QWidget):
 
     def paintEvent(self, event):
         painter = QtGui.QPainter(self)
-        painter.setRenderHint(QtGui.QPainter.Antialiasing)
-        color = QtCore.Qt.gray
+        painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+        color = QtCore.Qt.GlobalColor.gray
         thickness = round(self.height() / 18)  # pixels, use 1/18th of height so that it scales
-        style = QtCore.Qt.SolidLine
+        style = QtCore.Qt.PenStyle.SolidLine
         pen = QtGui.QPen(color, thickness, style)
         painter.setPen(pen)
 
@@ -69,4 +69,3 @@ class ClockWidget(QWidget):
         painter.drawLine(center, center, minute_x, minute_y)
 
         painter.end()
-

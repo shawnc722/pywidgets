@@ -36,10 +36,10 @@ I created this because I tried and enjoyed [conky](https://wiki.archlinux.org/ti
 Lots of widget solutions exist purely for Windows, but overall they lacked the customization I wanted and trying to create the same thing with two widget platforms on two different operating systems just felt like a waste of effort. I started building this to resolve that issue, but also mostly for fun. 
 ## Requirements
 * Python 3.8+
-* PyQt5
+* PyQt6
 * psutil
 * pyqtgraph
-* winsdk and qasync (if you're using Windows and want the now playing widget to work)
+* winsdk (if you're using Windows and want the now playing widget to work)
 
 ## Installation or Getting Started
 

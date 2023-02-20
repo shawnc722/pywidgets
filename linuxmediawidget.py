@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtGui import QPixmap
+from PyQt6 import QtCore, QtWidgets
+from PyQt6.QtGui import QPixmap
 from time import time
 from pywidgets.widgets import _MediaListFramework, _MediaFramework
 from PyQt5.QtDBus import QDBusConnection, QDBusInterface
