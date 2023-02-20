@@ -20,7 +20,7 @@ blkstr = JITstring(pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disk
 
 window.add_widgets(
     [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], "<b>Disk Usage</b>",
-                                  update_interval=2000, arcthic=16),
+                                  update_interval=2000, arcthic=-1),
      pywidgets.HrWidget()])
 
 window.add_widgets(

@@ -101,13 +101,15 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.label_wrapper = QtWidgets.QWidget(self)
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(0)
+        #self.layout.setSpacing(0)
         self.layout.setDirection(self.layout.Direction.BottomToTop)
         self.label_wrapper.setLayout(self.layout)
         self.label = QtWidgets.QLabel(self.label_wrapper)
+        self.label.setIndent(0)
         self.label.setContentsMargins(0, 0, 0, 0)
         self.label_wrapper.setContentsMargins(0, 0, 0, 0)
         self.layout.addWidget(self.label)
+        self.layout.addStretch(1)
         self.title = title
         if title is not None:
             self.title_label = QtWidgets.QLabel(self.label_wrapper)
@@ -127,8 +129,8 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         for i, perc in enumerate(self._percs_now):
             offset = self.arcthic // 2 + i * (self.arcthic + self.arcthic // 4)
             arcsize = self.arcsize - offset * 2
-            self.arc(painter, offset, offset, arcsize, arcsize, 270, -270, thickness=self.arcthic // 4)
-            self.arc(painter, offset, offset, arcsize, arcsize, 270, int(-270 * perc / 100), thickness=self.arcthic)
+            self.arc(painter, offset, offset, arcsize, arcsize, 270, -270, self.arcthic // 4)
+            self.arc(painter, offset, offset, arcsize, arcsize, 270, int(-270 * perc / 100), self.arcthic)
         painter.end()
 
     def do_cmds(self):
@@ -140,7 +142,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         if hasattr(self, 'title_label'): self.title_label.setText(str(self.title))
         self.update()
 
-    def arc(self, painter, x, y, w, h, start, span, thickness=8):
+    def arc(self, painter, x, y, w, h, start, span, thickness):
         """
         Draws a solid arc using the given painter and self.arccol for color.
         :param painter: the QPainter object to use for drawing.

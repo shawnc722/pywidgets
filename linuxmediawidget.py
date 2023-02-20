@@ -3,7 +3,7 @@ from PyQt6 import QtCore, QtWidgets
 from PyQt6.QtGui import QPixmap
 from time import time
 from pywidgets.widgets import _MediaListFramework, _MediaFramework
-from PyQt5.QtDBus import QDBusConnection, QDBusInterface
+from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 S_TO_MS = 1000000
 
