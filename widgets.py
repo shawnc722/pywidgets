@@ -31,7 +31,8 @@ class Window(QtWidgets.QMainWindow):
         elif maintain_position.lower() == 'top': flags = flags | types.Tool | types.WindowStaysOnTopHint
         self.setWindowFlags(flags)
         if stylesheet == 'default':
-            stylesheet = f"color: grey; font-family: Play, sans-serif; font-size: {round(self.height() / 100)}px;"
+            stylesheet = "color: grey; font-family: Inter, Helvetica, Roboto, sans-serif; " + \
+                         f"font-size: {round(self.height() / 100)}px;"
         self.setStyleSheet(stylesheet)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
         self.central_widget = QtWidgets.QWidget()

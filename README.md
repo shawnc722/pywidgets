@@ -32,8 +32,12 @@ This code results in the following widget:
 * Powerful - if you can think of an idea for a widget, you can probably make it.
 ## Motivation
 
-I created this because I tried and enjoyed [conky](https://wiki.archlinux.org/title/Conky), but regretted not having the same thing on my Windows dual-boot.
-Lots of widget solutions exist purely for Windows, but overall they lacked the customization I wanted and trying to create the same thing with two widget platforms on two different operating systems just felt like a waste of effort. I started building this to resolve that issue, but also mostly for fun. 
+I created this because I tried and enjoyed [conky](https://wiki.archlinux.org/title/Conky), but regretted not having 
+the same thing on my Windows dual-boot.
+Lots of widget solutions exist purely for Windows, but overall they lacked the customization I wanted and trying to 
+create the same thing with two widget platforms on two different operating systems just felt like a waste of effort. 
+I started building this to resolve that issue, but also mostly for fun. 
+
 ## Requirements
 * Python 3.8+
 * PyQt6
@@ -43,10 +47,18 @@ Lots of widget solutions exist purely for Windows, but overall they lacked the c
 
 ## Installation or Getting Started
 
-This project can be installed as a package or run in place. To install as a package, download the latest wheel 
+This project can be installed as a package or run in place.  
+
+To install as a package, download the latest wheel 
 from the [releases](https://github.com/shawnc722/pywidgets/releases) section and install it, plus dependencies,
-with `pip install [filename]`. To run it in place, first install all the dependencies from the requirements 
+with `pip install [filename]`.  
+
+To run it in place, first install all the dependencies from the requirements 
 section and then clone the project with `git clone https://github.com/shawnc722/pywidgets.git`.  
+
+It isn't required, but the default font is [Inter](https://github.com/rsms/inter) and if it's not on your system already  
+you may want to install it. If not, a different font will be automatically chosen - though you can also just specify one yourself.
+
 To start up the sample widget, just run the module: `python -m pywidgets`.
 
 ## Usage
