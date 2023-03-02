@@ -33,12 +33,14 @@ class ClockWidget(QWidget):
         super().__init__(parent)
 ```
 We'll need to decide on a default size for the widget; for now, let's use 10% of the parent's height
-and the full available width.
+and the full available width. We'll copy the parent's font for this, which is usually a good idea
+to keep a consistent style with other widgets.
 ```python3
 def __init__(self, parent, height=None):
     super.__init__(parent)
     height = height if height is not None else round(parent.height()/10)
     self.setFixedSize(parent.width(), height)
+    self.setFont(parent.font())
 ```
 For this widget, we'll assume the parent page shape is the default, a tall stack of widgets where 
 10% of the height is smaller than the width. That means we can take a square space for the 

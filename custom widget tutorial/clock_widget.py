@@ -13,6 +13,7 @@ class ClockWidget(QWidget):
         super().__init__(parent)
         height = height if height is not None else round(parent.height() / 10)
         self.setFixedSize(parent.width(), height)
+        self.setFont(parent.font())
 
         self.clock_size = height
         self.label = TextWidget(self)   # a TextWidget is just a QLabel wrapper w/ formatting

@@ -31,11 +31,13 @@ class Window(QtWidgets.QMainWindow):
         elif maintain_position.lower() == 'top': flags = flags | types.Tool | types.WindowStaysOnTopHint
         self.setWindowFlags(flags)
         if stylesheet == 'default':
-            stylesheet = f"color: grey; font-family: Monospace, Play-Regular; font-size: {round(self.height() / 100)}px;"
+            stylesheet = f"color: grey; font-family: Play, sans-serif; font-size: {round(self.height() / 100)}px;"
         self.setStyleSheet(stylesheet)
+        self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
         self.central_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.central_widget)
         self.widgets = []
+
 
     def add_widget(self, widget, *args) -> None:
         """
@@ -76,7 +78,7 @@ class Window(QtWidgets.QMainWindow):
 class ProgressArcsWidget(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
                  title: Union[JITstring, str] = None, height: int = None, update_interval: int = 1000,
-                 arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: float = 0.5):
+                 arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: float = 0.6):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
@@ -91,6 +93,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         if height is None: height = round(parent.height() / 10)
         self.setFixedSize(parent.width(), height)
         self.text = text
+        self.setFont(parent.font())
         self.percs = percs
         self._percs_now = None
         self.update_interval = update_interval
@@ -107,16 +110,16 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setDirection(self.layout.Direction.BottomToTop)
         self.label_wrapper.setLayout(self.layout)
-        self.label = QtWidgets.QLabel(self.label_wrapper)
+        self.label = TextWidget(self)
         self.label.setIndent(0)
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
         self.title = title
         if title is not None:
-            self.title_label = QtWidgets.QLabel(self.label_wrapper)
+            self.title_label = TextWidget(self)
             self.layout.addWidget(self.title_label)
         self.arcsize = height
-        xoff = round(self.arcsize / 2) + 2 * self.fontMetrics().underlinePos()  # use space beneath underline as adaptive padding
+        xoff = round(self.arcsize / 2) + self.font().pixelSize() // 3  # use font size for adaptive padding
         yoff = round(self.arcsize / 2)
         self.label_wrapper.setGeometry(xoff, yoff, self.width() - xoff, self.height() - yoff)
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignBottom)
@@ -189,6 +192,7 @@ class ProgressArcWidget(QtWidgets.QWidget):
         if height is None: height = round(parent.height() / 10)
         self.setFixedSize(parent.width(), height)
         self.text = text
+        self.setFont(parent.font())
         self.perc = perc
         self.perc_text = title
         self.arcpos = arcpos
@@ -327,6 +331,7 @@ class GraphWidget(pg.PlotWidget):
         if height == -1: height = round(parent.height()/10)
         if height is not None: self.setFixedHeight(height)
         self.graph_title = title
+        self.setFont(parent.font())
         self.xs = list(range(time_span // update_interval))
         self.ys = [0] * len(self.xs)
         self.update_interval = update_interval
@@ -370,6 +375,7 @@ class _MediaListFramework(QtWidgets.QWidget):
         super().__init__(parent)
         self.butsize = butsize
         self.imgsize = imgsize
+        self.setFont(parent.font())
         self.update_interval = update_interval
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
@@ -415,6 +421,7 @@ class _MediaFramework(QtWidgets.QWidget):
         self.update_interval = update_interval
         self.displaytext = ""
         self.playing = False
+        self.setFont(parent.font())
 
         self.infolabel = QtWidgets.QLabel(self)
         self.infolabel.setWordWrap(True)
@@ -571,6 +578,7 @@ class TextWidget(QtWidgets.QLabel):
         """
         if text is None: super().__init__(parent)
         else: super().__init__(str(text), parent)
+        self.setFont(parent.font())
         self.setWordWrap(wordwrap)
         self.setAlignment(getattr(QtCore.Qt.AlignmentFlag, "Align" + alignment))
         if update_interval is not None:
