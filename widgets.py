@@ -71,8 +71,6 @@ class Window(QtWidgets.QMainWindow):
         if add_stretch: self.layout.addStretch()
         if spacing is not None: self.layout.setSpacing(spacing)
         self.show()
-        print(f"Chosen font: {round(self.height() / 100)} px, actual:", self.fontMetrics().height(), "px")
-        print(self.fontInfo().pixelSize(), self.font().families())
 
 
 class ProgressArcsWidget(QtWidgets.QWidget):
