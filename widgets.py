@@ -54,12 +54,13 @@ class Window(QtWidgets.QMainWindow):
             if not hasattr(widget, '__next__'): self.widgets.append((widget, ))  # if it's not iterable, wrap in tuple
             else: self.widgets.append(widget)  # if 'widget' is iterable, assuming it matches the [widget, *args] format
 
-    def finish_init(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True) -> None:
+    def finish_init(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True, spacing: int = None) -> None:
         """
         Adds the stored pywidgets to the Window and finishes off the setup. Uses a custom layout if provided.
         :param layout: a Qt layout to use for the widgets.
         :param add_stretch: whether to pad the end of the layout with blank space to condense the widgets. Only works with
             certain types of layouts.
+        :param spacing: the spacing in pixels between widgets. Use None for default settings.
         """
         if layout is None:
             layout = QtWidgets.QVBoxLayout()
@@ -68,13 +69,14 @@ class Window(QtWidgets.QMainWindow):
         self.central_widget.setLayout(self.layout)
         for widget in self.widgets: self.layout.addWidget(*widget)
         if add_stretch: self.layout.addStretch()
+        if spacing is not None: self.layout.setSpacing(spacing)
         self.show()
 
 
 class ProgressArcsWidget(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
                  title: Union[JITstring, str] = None, height: int = None, update_interval: int = 1000,
-                 arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: int = -1):
+                 arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: float = 0.5):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
@@ -82,7 +84,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         :param height: the height of the widget in pixels.
         :param update_interval: the time in ms between calls to the percs function(s)
         :param arccol: the color of the arcs as a Qt color.
-        :param arcthic: the thickness of the arcs in pixels. Leave as -1 to use half the text height, or use None to match text height.
+        :param arcthic: the thickness of the arcs relative to the text height. Set to 0 to auto-match the default underline position.
         :param title: an optional title that sits above the text.
         """
         super().__init__(parent)
@@ -95,19 +97,18 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.do_cmds)
         self.arccol = arccol
-        if arcthic == -1: self.arcthic = round(self.fontMetrics().height()/2)
-        elif not arcthic: self.arcthic = self.fontMetrics().height()
-        else: self.arcthic = arcthic
+        fonth = self.fontMetrics().height()
+        if arcthic == 0.:
+            self.arcthic = (fonth - self.fontMetrics().underlinePos()) / 2
+        else:
+            self.arcthic = fonth * arcthic
         self.label_wrapper = QtWidgets.QWidget(self)
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
-        #self.layout.setSpacing(0)
         self.layout.setDirection(self.layout.Direction.BottomToTop)
         self.label_wrapper.setLayout(self.layout)
         self.label = QtWidgets.QLabel(self.label_wrapper)
         self.label.setIndent(0)
-        self.label.setContentsMargins(0, 0, 0, 0)
-        self.label_wrapper.setContentsMargins(0, 0, 0, 0)
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
         self.title = title
@@ -115,10 +116,10 @@ class ProgressArcsWidget(QtWidgets.QWidget):
             self.title_label = QtWidgets.QLabel(self.label_wrapper)
             self.layout.addWidget(self.title_label)
         self.arcsize = height
-        offset = self.arcsize // 2 + self.arcthic
-        self.label_wrapper.setFixedWidth(self.width() - offset)
-        self.label_wrapper.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
-        self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
+        xoff = round(self.arcsize / 2) + 2 * self.fontMetrics().underlinePos()  # use space beneath underline as adaptive padding
+        yoff = round(self.arcsize / 2)
+        self.label_wrapper.setGeometry(xoff, yoff, self.width() - xoff, self.height() - yoff)
+        self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignBottom)
         self.label.setWordWrap(True)
         if self.update_interval: self.timer.start(self.update_interval)
         self.do_cmds()
@@ -126,11 +127,15 @@ class ProgressArcsWidget(QtWidgets.QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        lh = self.fontMetrics().lineSpacing()
+        xoff = round(self.arcthic / 2)
+        yoff = round(lh / 2 - self.fontMetrics().underlinePos())  # remove dead space below line to center towards where the text actually appears
         for i, perc in enumerate(self._percs_now):
-            offset = self.arcthic // 2 + i * (self.arcthic + self.arcthic // 4)
-            arcsize = self.arcsize - offset * 2
-            self.arc(painter, offset, offset, arcsize, arcsize, 270, -270, self.arcthic // 4)
-            self.arc(painter, offset, offset, arcsize, arcsize, 270, int(-270 * perc / 100), self.arcthic)
+            ioff = i * lh * 2
+            arcsize = self.arcsize - ioff - max(self.arcthic, (lh + self.arcthic)//2)  # right
+            ioff //= 2
+            self.arc(painter, ioff + xoff, ioff + yoff, arcsize, arcsize, 270, -270, self.arcthic // 4)
+            self.arc(painter, ioff + xoff, ioff + yoff, arcsize, arcsize, 270, int(-270 * perc / 100), self.arcthic)
         painter.end()
 
     def do_cmds(self):
@@ -195,7 +200,7 @@ class ProgressArcWidget(QtWidgets.QWidget):
         self.arcthic = arcthic
         self.label = QtWidgets.QLabel(self)
         self.arcsize = height
-        offset = self.arcsize // 2 + self.arcthic
+        offset = (self.arcsize + self.arcthic) // 2
         x = 0 if 'right' in self.arcpos else offset
         y = 0 if 'bottom' in self.arcpos else offset
         self.label.setGeometry(x, y, self.width() - offset, self.height() - offset)
@@ -203,7 +208,6 @@ class ProgressArcWidget(QtWidgets.QWidget):
         self.label.setWordWrap(True)
         self.arclabel = QtWidgets.QLabel(self)
         lh = self.arcsize // 8
-        self.arclabel.setStyleSheet(f"line-height: {lh}px;")  # doesn't seem to be working
         self.arclabel.setScaledContents(True)
         padding = 2
         lw = round(self.arcsize * cos(asin(lh*padding / self.arcsize)))
@@ -333,13 +337,14 @@ class GraphWidget(pg.PlotWidget):
         pen = pg.mkPen(color=linecolor) if linewidth is None else pg.mkPen(color=linecolor, width=linewidth)
         self.setXRange(0, self.xs[-1], padding=0)
         self.getAxis('bottom').setStyle(showValues=False, tickLength=0)
-        self.getAxis('left').setStyle(tickLength=0)
+        self.getAxis('left').setStyle(tickLength=0, tickAlpha=0, hideOverlappingLabels=False)
         if yrange:
             self.setYRange(*yrange, padding=0)
             dy = yrange[1] - yrange[0]
-            ticks = [i * dy for i in (0.04, 0.25, 0.5, 0.75, 0.96)]
-            tickstrs = [i * dy for i in (0, 0.25, 0.5, 0.75, 1)]
-            tickstrs = [ylabel_str_fn(i) for i in tickstrs]
+            num_ticks = 5
+            tick_offset = 0.06  # % of y-axis to move the tick labels upwards by (causes imprecision in the middle labels)
+            tickstrs = [ylabel_str_fn(i/(num_ticks - 1) * dy) for i in range(num_ticks)]
+            ticks = [(i * (1 - tick_offset) / (num_ticks - 1) + tick_offset) * dy for i in range(num_ticks)]
             self.getAxis('left').setTicks([list(zip(ticks, tickstrs)), []])
         self.data_line = self.plot(self.xs, self.ys, pen=pen)
         self.timer = QtCore.QTimer()
@@ -578,15 +583,16 @@ class TextWidget(QtWidgets.QLabel):
         self.setText(str(self.get_text))
 
 
-def html_table(array: list, title='', right_td_style: str = "text-align:right;") -> str:
+def html_table(array: list, title='', style: str = "border-collapse: collapse;", right_td_style: str = "text-align:right;") -> str:
     """
     Creates a 2 column HTML table out of the provided info for use in pywidgets.
     :param array: a list of lists where each secondary list has two rows.
     :param title: the title of the table.
+    :param style: a CSS style for the table element.
     :param right_td_style: a CSS style to be given to the right cells.
     :return: a string containing the HTML data for the table.
     """
-    table = title + '<table width=100%>'
+    table = title + f'<table width=100% style="{style}">'
     for row in array:
         table += f'<tr><td>{row[0]}</td><td style="{right_td_style}">{row[1]}</td></tr>'
     table += '</table>'
