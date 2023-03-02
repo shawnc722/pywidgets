@@ -31,7 +31,7 @@ class Window(QtWidgets.QMainWindow):
         elif maintain_position.lower() == 'top': flags = flags | types.Tool | types.WindowStaysOnTopHint
         self.setWindowFlags(flags)
         if stylesheet == 'default':
-            stylesheet = f"color: grey; font-family: Monospace, Play-Regular; font-size: {round(self.height() / 120)}px;"
+            stylesheet = f"color: grey; font-family: Monospace, Play-Regular; font-size: {round(self.height() / 100)}px;"
         self.setStyleSheet(stylesheet)
         self.central_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.central_widget)
@@ -71,6 +71,7 @@ class Window(QtWidgets.QMainWindow):
         if add_stretch: self.layout.addStretch()
         if spacing is not None: self.layout.setSpacing(spacing)
         self.show()
+        print(f"Chosen font: {round(self.height() / 100)} px, actual:", self.fontMetrics().height(), "px")
 
 
 class ProgressArcsWidget(QtWidgets.QWidget):
