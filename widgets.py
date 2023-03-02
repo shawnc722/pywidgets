@@ -72,6 +72,7 @@ class Window(QtWidgets.QMainWindow):
         if spacing is not None: self.layout.setSpacing(spacing)
         self.show()
         print(f"Chosen font: {round(self.height() / 100)} px, actual:", self.fontMetrics().height(), "px")
+        print(self.fontInfo().pixelSize(), self.font().families())
 
 
 class ProgressArcsWidget(QtWidgets.QWidget):
@@ -332,13 +333,13 @@ class GraphWidget(pg.PlotWidget):
         self.ys = [0] * len(self.xs)
         self.update_interval = update_interval
         self.getdata = getdata
-        self.setBackground(None)
-        self.setTitle(title)
-        self.setStyleSheet("background-color:transparent;")
+        self.setTitle(title, size=f"{self.fontInfo().pixelSize()}px")
+        self.getPlotItem().titleLabel.item.setFont(self.font())
+        self.setStyleSheet("background-color: transparent;")
         pen = pg.mkPen(color=linecolor) if linewidth is None else pg.mkPen(color=linecolor, width=linewidth)
         self.setXRange(0, self.xs[-1], padding=0)
         self.getAxis('bottom').setStyle(showValues=False, tickLength=0)
-        self.getAxis('left').setStyle(tickLength=0, tickAlpha=0, hideOverlappingLabels=False)
+        self.getAxis('left').setStyle(tickLength=0, tickAlpha=0, hideOverlappingLabels=False, tickFont=self.font())
         if yrange:
             self.setYRange(*yrange, padding=0)
             dy = yrange[1] - yrange[0]
