@@ -505,16 +505,19 @@ class TextWidget(QtWidgets.QLabel):
         self.setText(str(self.get_text))
 
 
-def html_table(array: list, title='', style: str = "border-collapse: collapse;", right_td_style: str = "text-align:right;") -> str:
+def html_table(array: list, title='', style: str = "border-collapse: collapse;", right_td_style: str = "text-align: right;",
+               tstyle: str = "text-align: center;") -> str:
     """
     Creates a 2 column HTML table out of the provided info for use in pywidgets.
     :param array: a list of lists where each secondary list has two rows.
     :param title: the title of the table.
     :param style: a CSS style for the table element.
     :param right_td_style: a CSS style to be given to the right cells.
+    :param tstyle: the css style element for the title
     :return: a string containing the HTML data for the table.
     """
-    table = title + f'<table width=100% style="{style}">'
+    table = f'<div style="{tstyle}">{title}</div>' if title else ''
+    table += f'<table width=100% style="{style}">'
     for row in array:
         table += f'<tr><td>{row[0]}</td><td style="{right_td_style}">{row[1]}</td></tr>'
     table += '</table>'
