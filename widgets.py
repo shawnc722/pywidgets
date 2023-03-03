@@ -113,16 +113,19 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.label_wrapper.setLayout(self.layout)
         self.label = TextWidget(self)
         self.label.setIndent(0)
+        self.layout.setSpacing(0)
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
         self.title = title
+        self.arcsize = height
+        offset = round((self.arcsize - round(
+            max(self.arcthic, (self.fontMetrics().lineSpacing() + self.arcthic) / 2))) / 2 + self.arcthic)
+        self.label_wrapper.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
         if title is not None:
             self.title_label = TextWidget(self)
             self.layout.addWidget(self.title_label)
-        self.arcsize = height
-        xoff = round(self.arcsize / 2) + self.font().pixelSize() // 3  # use font size for adaptive padding
-        yoff = round(self.arcsize / 2)
-        self.label_wrapper.setGeometry(xoff, yoff, self.width() - xoff, self.height() - yoff)
+            titleoff = offset - self.fontMetrics().lineSpacing()
+            self.label_wrapper.setGeometry(offset, titleoff, self.width() - offset, self.height() - titleoff)
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignBottom)
         self.label.setWordWrap(True)
         if self.update_interval: self.timer.start(self.update_interval)
@@ -136,7 +139,7 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         yoff = round(lh / 2 - self.fontMetrics().underlinePos())  # remove dead space below line to center towards where the text actually appears
         for i, perc in enumerate(self._percs_now):
             ioff = i * lh * 2
-            arcsize = self.arcsize - ioff - max(self.arcthic, (lh + self.arcthic)//2)  # right
+            arcsize = self.arcsize - ioff - round(max(self.arcthic, (lh + self.arcthic) / 2))  # right
             ioff //= 2
             self.arc(painter, ioff + xoff, ioff + yoff, arcsize, arcsize, 270, -270, self.arcthic // 4)
             self.arc(painter, ioff + xoff, ioff + yoff, arcsize, arcsize, 270, int(-270 * perc / 100), self.arcthic)
@@ -154,96 +157,6 @@ class ProgressArcsWidget(QtWidgets.QWidget):
     def arc(self, painter, x, y, w, h, start, span, thickness):
         """
         Draws a solid arc using the given painter and self.arccol for color.
-        :param painter: the QPainter object to use for drawing.
-        :param x: the x coordinate to begin drawing at, relative to this widget.
-        :param y: the y coordinate to begin drawing at, relative to this widget.
-        :param w: the width of the final shape in pixels.
-        :param h: the height of the final shape in pixels.
-        :param start: the angle (in degrees) to start the arc at.
-        :param span: the angle (in degrees) the arc should span in total.
-        :param thickness: the line thickness to use for the arc, in pixels.
-        """
-        painter.setPen(QPen(self.arccol, thickness, QtCore.Qt.PenStyle.SolidLine))
-        painter.drawArc(x, y, w, h, start * 16, span * 16)
-
-
-class ProgressArcWidget(QtWidgets.QWidget):
-    angle_args = {  # 0deg is right and 90deg is up.
-        'top right': (-90, 270),
-        'top left': (-90, -270),
-        'bottom right': (180, 270),
-        'bottom left': (0, -270)
-    }
-
-    def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], perc: Callable,
-                 title: Union[JITstring, str] = None, arcpos: str = "top left", height: int = None,
-                 update_interval: int = 1000, arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: int = 8):
-        """A widget that displays a percentage value as an arc around some text - or a JITstring, for dynamic text.
-        :param parent: the parent widget of this widget, usually the main window.
-        :param text: the text for the arcs to be drawn around.
-        :param perc: a function/command that produces something resembling a float between 0 and 100.
-        :param title: short text to put inside the arc.
-        :param arcpos: where to place the arc on the text box. One of: ['top left', 'top right', 'bottom left', 'bottom right'].
-        :param height: the height of the widget in pixels.
-        :param update_interval: the time in ms between calls to the perc function
-        :param arccol: the color of the arcs as a Qt color.
-        :param arcthic: the thickness of the arcs in pixels.
-        """
-        super().__init__(parent)
-        if height is None: height = round(parent.height() / 10)
-        self.setFixedSize(parent.width(), height)
-        self.text = text
-        self.setFont(parent.font())
-        self.perc = perc
-        self.perc_text = title
-        self.arcpos = arcpos
-        self._perc_now = None
-        self.update_interval = update_interval
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.do_cmds)
-        self.arccol = arccol
-        self.arcthic = arcthic
-        self.label = QtWidgets.QLabel(self)
-        self.arcsize = height
-        offset = (self.arcsize + self.arcthic) // 2
-        x = 0 if 'right' in self.arcpos else offset
-        y = 0 if 'bottom' in self.arcpos else offset
-        self.label.setGeometry(x, y, self.width() - offset, self.height() - offset)
-        self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft)
-        self.label.setWordWrap(True)
-        self.arclabel = QtWidgets.QLabel(self)
-        lh = self.arcsize // 8
-        self.arclabel.setScaledContents(True)
-        padding = 2
-        lw = round(self.arcsize * cos(asin(lh*padding / self.arcsize)))
-        x = offset - round(lw/2) if 'left' in arcpos else self.width() - offset - round(lw/2)
-        y = offset - round(lh * padding) if 'top' in arcpos else self.height() - offset + padding
-        self.arclabel.setGeometry(x, y, lw, lh*padding)
-        self.arclabel.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
-        self.timer.start(self.update_interval)
-        self.do_cmds()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        offset = self.arcthic // 2
-        arcsize = self.arcsize - offset * 2
-        x = self.width() - offset - arcsize if 'right' in self.arcpos else offset
-        y = self.height() - offset - arcsize if 'bottom' in self.arcpos else offset
-        start, span = self.angle_args[self.arcpos]
-        self.arc(painter, x, y, arcsize, arcsize, start, span, thickness=self.arcthic // 4)
-        self.arc(painter, x, y, arcsize, arcsize, start, round(span * self._perc_now / 100), thickness=self.arcthic)
-        painter.end()
-
-    def do_cmds(self):
-        self._perc_now = float(self.perc())
-        self.label.setText(str(self.text))
-        self.arclabel.setText(self.perc_text)
-        self.update()
-
-    def arc(self, painter, x, y, w, h, start, span, thickness=8):
-        """
-        Draws a solid arc using the given painter and self.arccol for color. 0deg is right and 90deg is up.
         :param painter: the QPainter object to use for drawing.
         :param x: the x coordinate to begin drawing at, relative to this widget.
         :param y: the y coordinate to begin drawing at, relative to this widget.

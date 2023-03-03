@@ -23,13 +23,13 @@ def _nvidiainfo(query):
     return BashCmd(f'nvidia-smi --query-gpu={query} --format=csv,noheader')
 
 
-def numbers_only(string: str) -> str:
+def numbers_only(string: str) -> float:
     """
     A helper function to get only the numbers from a string, for example 'a1b2c3' --> '123'
     :param string: the string to get numbers out of.
     :return: the given string, minus any characters that aren't numeric.
     """
-    return ''.join(i for i in string if i.isnumeric())
+    return float(''.join(i for i in string if i.isnumeric()))
 
 
 def numbers_only_fn(cmd: PyCmd) -> PyCmd:
