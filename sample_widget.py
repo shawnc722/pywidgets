@@ -8,8 +8,8 @@ app = pywidgets.get_application()
 window = pywidgets.get_window(app)
 
 window.add_widget(pywidgets.HrWidget())
-window.add_widget(pywidgets.TextWidget(f"{system_strings['system name']} - {system_strings['distro']}<br/>" +
-                                       f"Running {cur_OS} {system_strings['release']}"))
+window.add_widget(pywidgets.TextWidget(window, f"{system_strings['system name']} - {system_strings['distro']}<br/>" +
+                                       f"Running {cur_OS} {system_strings['release']}<br/>" + system_strings['CPU name']))
 window.add_widget(pywidgets.HrWidget())
 
 if cur_OS in ['Windows', 'Linux']:  # no media pywidgets for mac yet
@@ -20,7 +20,7 @@ blkstr = JITstring(pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disk
 
 window.add_widgets(
     [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], "<b>Disk Usage</b>",
-                                  update_interval=2000, arcthic=-1),
+                                  update_interval=2000),
      pywidgets.HrWidget()])
 
 window.add_widgets(
@@ -31,26 +31,26 @@ window.add_widgets(
                            yrange=(0, int(net_cmds['total net max speed'])), ylabel_str_fn=bytes2human)])
 
 if 'GPU 0:' in BashCmd("nvidia-smi -L"):  # if the list of nvidia gpus returns at least one
-    gpustr = JITstring(pywidgets.html_table(
-        [['Usage: {}', 'Temp: {}C'], ['Throttled: {}', 'Clock: {}'], ['Power:', '{} / {}']],
-        title='<b>' + nvidia_cmds['GPU']['name'].run() + '</b>'),
-        [nvidia_cmds['GPU']['usage'], nvidia_cmds['GPU']['temp'],
-         PyCmd(lambda x: ["no", "yes"][str(x) != "Not Active"], nvidia_cmds['GPU']['throttling']),
-         nvidia_cmds['clocks']['graphics clock freq'], nvidia_cmds['power']['draw'], nvidia_cmds['power']['limit']])
-    window.add_widget(pywidgets.ProgressArcWidget(window, gpustr, numbers_only_fn(nvidia_cmds['GPU']['usage']),
-                                                   "<b>GPU Usage</b>", update_interval=500))
+    text = [['Temp: {}C', 'Throttled: {}'], ['Clock Speed:', '{} / {}'], ['Power:', '{} / {}']]
+    vals = [nvidia_cmds['GPU']['temp'],
+            PyCmd(lambda x: ["no", "yes"][str(x) != "Not Active"], nvidia_cmds['GPU']['throttling']),
+            nvidia_cmds['clocks']['graphics clock freq'], nvidia_cmds['clocks']['graphics clock freq max'],
+            nvidia_cmds['power']['draw'], nvidia_cmds['power']['limit']]
+
+    gpustr = JITstring(pywidgets.html_table(text, title='<b>' + nvidia_cmds['GPU']['name'].run() + '</b>'), vals)
+    percs = [numbers_only_fn(nvidia_cmds['GPU']['usage'])]
+    window.add_widget(pywidgets.ProgressArcsWidget(window, gpustr, percs, "<b>GPU Usage</b>", update_interval=500))
 
 if cur_OS == 'Linux':
     from pywidgets.sample_data import temp_cmds
 
     try:  # in case the system this is running on has exactly the same device names and labels as mine
         tempstr = JITstring(pywidgets.html_table(
-            [["CPU temp:", "{}C"], ["NVME temp:", "{}C"], ["Wifi temp:", "{}C"]]),
+            [["CPU temp:", "{}C"], ["NVME temp:", "{}C"], ["Wifi temp:", "{}C"]], "<b>Temperatures</b>"),
             [temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]]
         )
-        window.add_widget(pywidgets.ProgressArcsWidget(window, tempstr,
-                                                       [PyCmd(lambda: float(temp_cmds['nvme Composite current']),
-                                                              float(temp_cmds['nvme Composite critical']))]))
+
+        window.add_widgets([pywidgets.HrWidget(), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
     except IndexError:
         pass  # if any of the devices or labels are wrong, just move on
 
