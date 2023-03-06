@@ -19,7 +19,7 @@ blkstr = JITstring(pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disk
                    [i for l in zip(disk_cmds['disks used'], disk_cmds['disks total']) for i in l])
 
 window.add_widgets(
-    [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], "<b>Disk Usage</b>",
+    [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], True, "<b>Disk Usage</b>",
                                   update_interval=2000),
      pywidgets.HrWidget()])
 
@@ -39,7 +39,7 @@ if 'GPU 0:' in BashCmd("nvidia-smi -L"):  # if the list of nvidia gpus returns a
 
     gpustr = JITstring(pywidgets.html_table(text, title='<b>' + nvidia_cmds['GPU']['name'].run() + '</b>'), vals)
     percs = [numbers_only_fn(nvidia_cmds['GPU']['usage'])]
-    window.add_widget(pywidgets.ProgressArcsWidget(window, gpustr, percs, "<b>GPU Usage</b>", update_interval=500))
+    window.add_widget(pywidgets.ProgressArcsWidget(window, gpustr, percs, title="<b>GPU Usage</b>", update_interval=500))
 
 if cur_OS == 'Linux':
     from pywidgets.sample_data import temp_cmds
