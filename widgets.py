@@ -9,7 +9,8 @@ from math import asin, cos
 
 class Window(QtWidgets.QMainWindow):
     def __init__(self, width: int, height: int, stylesheet: str = "default", maintain_position: str = "bottom",
-                 default_color: QColor = QtCore.Qt.GlobalColor.gray, flags: QtCore.Qt.WindowType = None):
+                 default_color: Union[str, QColor, tuple] = QtCore.Qt.GlobalColor.gray,
+                 flags: QtCore.Qt.WindowType = None):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
@@ -611,14 +612,21 @@ def get_application(*args, **kwargs) -> QtWidgets.QApplication:
 
 
 def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", offset: int = 1,
-               stylesheet: str = "default", **kwargs) -> Window:
+               stylesheet: str = "default", maintain_position: str = "bottom",
+               default_color: QColor = QtCore.Qt.GlobalColor.gray, flags: QtCore.Qt.WindowType = None) -> Window:
     """
     A wrapper function for creating a new window with dimensions {width} by your screen height on the right edge of the screen.
     Any other keyword arguments passed to this function will be passed on to the Window class.
     :param app: the QApplication instance, can be created with get_application() as a convenience wrapper.
     :param width: the width the new window should have, in pixels, or one of the strings "default" (for ~1/8th width) or "max".
     :param offset: the amount of pixels left the window should be moved to account for how visible the edge is. Ignored if width is max.
-    :param stylesheet: a css stylesheet for the window to use.
+    :param stylesheet: a css stylesheet for all the widgets - usually contains at least a color and a font-family.
+    :param maintain_position: where the window should stay - "bottom" to appear part of the desktop, "top" to stay
+        on top, or "default" to behave like a normal window.
+    :param default_color: the color for all widgets to default to, if not provided a different color as an argument.
+        Accepts anything that can be cast to a QColor.
+    :param flags: Window type flags, to be passed along to the QMainWindow class.
+
     :return: the new Window instance.
     """
     window_dims = app.primaryScreen().availableGeometry()
@@ -629,6 +637,6 @@ def get_window(app: QtWidgets.QApplication, width: Union[int, str] = "default", 
             width = window_dims.width()
             offset = 0
         else: raise ValueError(f"No preset width corresponding to given argument {width} in get_window().")
-    window = Window(width, height, stylesheet, **kwargs)
+    window = Window(width, height, stylesheet, maintain_position, default_color, flags)
     window.move(window_dims.width() - width - offset, 0)
     return window

@@ -7,61 +7,69 @@ if you'd like to run it yourself.
 
 To begin creating the widget, we'll need our import statements; don't worry about them too much for now.  
 ```python3
-from PyQt6.QtWidgets import QWidget
 from PyQt6 import QtGui, QtCore
 from pywidgets.JITstrings import JITstring, PyCmd
-from pywidgets.widgets import TextWidget
+from pywidgets.widgets import TextWidget, BaseWidget
 from datetime import datetime
 from math import sin, cos, pi
 ```
 Next, we'll need to define a class for the new widget; we can call it a `ClockWidget`, 
-and it should inherit from Qt5's QWidget.
+and it should inherit from the pywidgets BaseWidget. This gives it access to the parent widget's default color and font.
 ```python3
-class ClockWidget(QWidget):
+class ClockWidget(BaseWidget):
     """A widget displaying an analog clock."""
     ...
 ```
 Now we'll need to make the init method for our widget and decide its arguments. It should 
 take its parent widget at minimum, but it's useful to have other optional variables for 
 customization. These can be colors, fonts, line widths or styles, etc. For now, we'll only do
-the parent and the desired height as an optional argument:
+the parent, plus the desired height and color as optional arguments:
 ```python3
-class ClockWidget(QWidget):
+class ClockWidget(BaseWidget):
     """A widget displaying an analog clock."""
     
-    def __init__(self, parent, height=None):
+    def __init__(self, parent, height=None, color=None):
         super().__init__(parent)
+        self.color = color if color is not None else self.default_color
 ```
-We'll need to decide on a default size for the widget; for now, let's use 10% of the parent's height
-and the full available width. We'll copy the parent's font for this, which is usually a good idea
-to keep a consistent style with other widgets.
+Note that `self.default_color` exists and has the correct color because we've inherited from `BaseWidget` and
+called `super().__init__(parent)`. By doing this, we have access to the default style all widgets should try 
+to maintain; the default color makes everything look consistent and the font is automatically set. As long as 
+your widget meets those two criteria, a user can add an instance of your widget to their page script and it'll 
+automatically match their style.  
+
+Next we'll need to decide on a default size for the widget; for now, let's use 10% of the parent's height
+and the full available width. 
 ```python3
-def __init__(self, parent, height=None):
-    super.__init__(parent)
+def __init__(self, parent, height=None, color=None):
+    ...
     height = height if height is not None else round(parent.height()/10)
     self.setFixedSize(parent.width(), height)
-    self.setFont(parent.font())
 ```
 For this widget, we'll assume the parent page shape is the default, a tall stack of widgets where 
 10% of the height is smaller than the width. That means we can take a square space for the 
 drawing of the clock dimensions `height`x`height` and still have some space left over beside it.  
 Let's make a sub-widget for the text now, after reserving some space on the left for the clock:
 ```python3
-def __init__(self, parent, height=None):
+def __init__(self, parent, height=None, color=None):
     ...
     self.clock_size = height
     self.label = TextWidget(self)  # a TextWidget is just a QLabel wrapper w/ formatting
     # set position and size: setGeometry(x, y, w, h) relative to this widget's top left
     self.label.setGeometry(self.clock_size, 0, self.width() - self.clock_size, height)
 ```
+Note that the TextWidget will automatically use the color and font set in `clock_test_page.py` as long as its parent
+(this `ClockWidget` class) inherits from `BaseWidget` and calls `super().__init__(parent)`.  
+
 We now have the basic layout we want; a square space for our clock, and an area for text on its left.
 Drawing the clock will have its own function, so let's continue working on the text for now.  
 For this, we'll use a `JITstring`; think of it as the `str.format()` method, but run each time
 the string is accessed. The first argument is the basic string, with curly braces {} as placeholders 
 for where the arguments should go. Then we give it a list of the argumments, in order. 
+
 To get the date and time, we'll use python's datetime:
 ```python3
-def __init__(self, parent, height=None):
+def __init__(self, parent, height=None, color=None):
     ...
     def get_time(fmt): return datetime.now().strftime(fmt)
     time = PyCmd(get_time, "%I:%M %p")
@@ -73,7 +81,7 @@ second is the obvious choice. We won't actually be adding a second hand in this 
 so it's a little overkill, but the more often it refreshes the more accurate it is.
 We'll tell the timer to run a method we haven't created yet, called `do_cmds()`.
 ```python3
-def __init__(self, parent, height=None):
+def __init__(self, parent, height=None, color=None):
     ...
     update_interval = 1000  # 1 second in ms
     self.timer = QtCore.QTimer()
@@ -97,10 +105,10 @@ to vary the look:
 def paintEvent(self, event):
     painter = QtGui.QPainter(self)
     painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
-    color = QtCore.Qt.GlobalColor.gray
     thickness = round(self.height() / 18)  # pixels, use 1/18th of height so that it scales
     style = QtCore.Qt.PenStyle.SolidLine
-    pen = QtGui.QPen(color, thickness, style)
+    pen = QtGui.QPen(self.color, thickness, style)
+    pen.setCapStyle(QtCore.Qt.PenCapStyle.RoundCap)
     painter.setPen(pen)
 ```
 This gives us the painter we need to draw whatever we have in mind, in this case the clock. 
@@ -134,19 +142,20 @@ if you're not big on trigonometry just skip this part:
 def paintEvent(self, event):
     ...
     time = datetime.now()
-        hour_angle = ((time.hour % 12) / 12) * 2 * pi  # percentage of rotation done * a full circle in radians
-        minute_angle = (time.minute / 60) * 2 * pi  # percentage of a rotation done * a full circle in radians
+    # note that time.hour and time.minute start at 0, so we use 11 hours instead of 12 and 59 min instead of 60
+    hour_angle = ((time.hour % 11) / 11) * 2 * pi  # percentage of rotation done * a full circle in radians
+    minute_angle = (time.minute / 59) * 2 * pi  # percentage of a rotation done * a full circle in radians
+    
+    minute_hand_length = round(newsize / 2 - thickness)  # inner radius of the circle minus the line thickness
+    hour_hand_length = .75 * minute_hand_length
 
-        minute_hand_length = round(newsize / 2 - thickness)  # inner radius of the circle minus the line thickness
-        hour_hand_length = .75 * minute_hand_length
+    center = round(self.clock_size / 2)  # center x and y coordinates are the same, so only using one
 
-        center = round(self.clock_size / 2)  # center x and y coordinates are the same, so only using one
+    hour_x = center + round(hour_hand_length * sin(hour_angle))
+    hour_y = center - round(hour_hand_length * cos(hour_angle))
 
-        hour_x = center + round(hour_hand_length * sin(hour_angle))
-        hour_y = center - round(hour_hand_length * cos(hour_angle))
-
-        minute_x = center + round(minute_hand_length * sin(minute_angle))
-        minute_y = center - round(minute_hand_length * cos(minute_angle))
+    minute_x = center + round(minute_hand_length * sin(minute_angle))
+    minute_y = center - round(minute_hand_length * cos(minute_angle))
 ```
 Now all that's left is to actually draw the lines, and then tell the painter we're done: 
 ```python3
