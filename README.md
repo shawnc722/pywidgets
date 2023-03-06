@@ -23,7 +23,8 @@ window.add_widget(widget)
 window.finish_init()
 exit(app.exec())
 ```
-This code results in the following widget:  
+This code results in the following widget, which shows the percentage use of 
+the CPU over the last one minute and updates every second:  
 ![Image of above widget](pictures/graph_widget_example.jpg "The widget created by the code above")
 ## Features
 * Cross-platform - the same widget setup can work between Linux/Windows dual boots, and/or can be used on a Mac.

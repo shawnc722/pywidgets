@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 from psutil import cpu_percent, virtual_memory, cpu_freq, disk_partitions, \
-    disk_usage, net_io_counters, net_if_stats
+    disk_usage, net_io_counters, net_if_stats, cpu_count
 from psutil._common import bytes2human
 from platform import uname, system, version
 from pywidgets.JITstrings import PyCmd, BashCmd, PyCmdWithMem
@@ -68,6 +68,8 @@ _darwin_strs = {
 _os_strs = {'Linux': _linux_strs, '': _linux_strs, 'Windows': _windows_strs,
             'Darwin': _darwin_strs}
 cpu_cmds = {
+    "cpu thread count": PyCmd(cpu_count),
+    "cpu core count": PyCmd(cpu_count, logical=False),
     "overall usage": PyCmd(cpu_percent),
     "per core usage": PyCmd(cpu_percent, percpu=True),
     "overall freq": PyCmd(lambda: round(cpu_freq().current, 1)),

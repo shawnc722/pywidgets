@@ -4,7 +4,7 @@ from PyQt6 import QtWidgets, QtCore
 from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath
 from pywidgets.JITstrings import JITstring
 import pyqtgraph as pg
-from math import asin, cos
+import numpy as np
 
 
 class Window(QtWidgets.QMainWindow):
@@ -295,7 +295,7 @@ class ProgressBarWidget(BaseWidget):
 
 class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but currently using a workaround
     def __init__(self, parent: QtWidgets.QWidget, title: Union[JITstring, str], getdata: Callable, height: int = -1,
-                 update_interval: int = 500, time_span: int = 60000, yrange=(0, 100),
+                 update_interval: int = 500, time_span: int = 60000, yrange: tuple = (0, 100),
                  ylabel_str_fn=str, linecolor=None, linewidth: float = None, lines: int = 1):
         """
         A widget showing a graph with time as the x-axis and a title.
@@ -305,7 +305,7 @@ class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but current
         :param height: the height of the widget in pixels. Set to None for responsive, and -1 to automatically set fixed height (default).
         :param update_interval: how often (in ms) the graph should update.
         :param time_span: the range in ms for the x-axis.
-        :param yrange: the range for the y-axis, as a tuple with (min, max).
+        :param yrange: the range for the y-axis, as a tuple with (bottom, top).
         :param ylabel_str_fn: a function returning the labels for the y-axis. Must take a y value and return a str.
         :param linecolor: the color of the graph. Can be (R,G,B,[A]) tuple (values from 0-255), "#RGB" or "#RRGGBBAA" hex strings, QColor, etc.
             See documentation for pyqtgraph.mkColor() for all options. Leave as None to use the parent widget's default color.
@@ -318,8 +318,9 @@ class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but current
         if height is not None: self.setFixedHeight(height)
         self.graph_title = title
         if linecolor is None: linecolor = self.default_color
-        self.xs = list(range(time_span // update_interval))
-        self.ys = [0] * len(self.xs) if lines == 1 else [[0] * len(self.xs)] * lines
+        self.xs = np.arange(0, time_span, update_interval)
+        dtype = np.float64
+        self.ys = np.zeros(self.xs.shape, dtype) if lines == 1 else np.zeros((lines, len(self.xs)), dtype)
         self.update_interval = update_interval
         self.getdata = getdata
         self.lines = lines
@@ -327,19 +328,22 @@ class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but current
         self.getPlotItem().titleLabel.item.setFont(self.font())
         self.setStyleSheet("background-color: transparent;")
         pen = pg.mkPen(color=linecolor) if linewidth is None else pg.mkPen(color=linecolor, width=linewidth)
-        self.setXRange(0, self.xs[-1], padding=0)
+        self.setXRange(0, time_span, padding=0.)
         self.getAxis('bottom').setStyle(showValues=False, tickLength=0)
         self.getAxis('left').setStyle(tickLength=0, tickAlpha=0, hideOverlappingLabels=False, tickFont=self.font())
         if yrange:
-            self.setYRange(*yrange, padding=0)
+            self.setYRange(*yrange, padding=0.)
             dy = yrange[1] - yrange[0]
             num_ticks = 5
             tick_offset = 0.06  # % of y-axis to move the tick labels upwards by (causes imprecision in the middle labels)
             tickstrs = [ylabel_str_fn(i/(num_ticks - 1) * dy) for i in range(num_ticks)]
             ticks = [(i * (1 - tick_offset) / (num_ticks - 1) + tick_offset) * dy for i in range(num_ticks)]
             self.getAxis('left').setTicks([list(zip(ticks, tickstrs)), []])
+
         if lines == 1: self.data_line = self.plot(self.xs, self.ys, pen=pen)
-        else: self.data_lines = self.multiDataPlot(x=self.xs, y=self.ys, pen=pen)
+        else:
+            self.data_lines = self.multiDataPlot(x=self.xs, y=self.ys)
+            for line in self.data_lines: line.setPen(pen)
         self.timer = QtCore.QTimer()
         self.timer.setInterval(update_interval)
         self.timer.timeout.connect(self.update_plot_data)
@@ -347,14 +351,14 @@ class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but current
 
     def update_plot_data(self):
         if self.lines == 1:
-            self.ys.pop(0)
-            self.ys.append(float(self.getdata()))
+            self.ys = np.roll(self.ys, -1)
+            self.ys[-1] = float(self.getdata())
             self.data_line.setData(self.xs, self.ys)
         else:
             data = self.getdata()
+            self.ys = np.roll(self.ys, -1, axis=1)
+            self.ys[:, -1] = data
             for i, y in enumerate(self.ys):
-                y.pop(0)
-                y.append(data[i])
                 self.data_lines[i].setData(self.xs, y)
 
 
