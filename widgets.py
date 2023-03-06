@@ -8,7 +8,8 @@ from math import asin, cos
 
 
 class Window(QtWidgets.QMainWindow):
-    def __init__(self, width: int, height: int, stylesheet: str = "default", maintain_position: str = "bottom"):
+    def __init__(self, width: int, height: int, stylesheet: str = "default", maintain_position: str = "bottom",
+                 default_color: QColor = QtCore.Qt.GlobalColor.gray, flags: QtCore.Qt.WindowType = None):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
@@ -17,11 +18,16 @@ class Window(QtWidgets.QMainWindow):
         :param stylesheet: a css stylesheet for all the widgets - usually contains at least a color and a font-family.
         :param maintain_position: where the window should stay - "bottom" to appear part of the desktop, "top" to stay
             on top, or "default" to behave like a normal window.
+        :param default_color: the color for all widgets to default to, if not provided a different color as an argument.
+            Accepts anything that can be cast to a QColor.
+        :param flags: Window type flags, to be passed along to the QMainWindow class.
         """
-        super().__init__()
-        self.central_widget = None
+        if flags is not None: super().__init__(flags=flags)
+        else: super().__init__()
+        self.main_widget = None
         self.layout = None
         self.title = "PyWidget"
+        self.default_color = QColor(default_color)
         self.setWindowTitle(self.title)
         self.setFixedSize(width, height)
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -32,13 +38,12 @@ class Window(QtWidgets.QMainWindow):
         self.setWindowFlags(flags)
         if stylesheet == 'default':
             stylesheet = "color: grey; font-family: Inter, Helvetica, Roboto, sans-serif; " + \
-                         f"font-size: {round(self.height() / 100)}px;"
+                         f"font-size: {round(self.height() / 100)}px;"  # font-family borrowed from elementary OS
         self.setStyleSheet(stylesheet)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
-        self.central_widget = QtWidgets.QWidget()
-        self.setCentralWidget(self.central_widget)
+        self.main_widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.main_widget)
         self.widgets = []
-
 
     def add_widget(self, widget, *args) -> None:
         """
@@ -69,47 +74,137 @@ class Window(QtWidgets.QMainWindow):
             layout = QtWidgets.QVBoxLayout()
             layout.setContentsMargins(0, 0, 0, 0)
         self.layout = layout
-        self.central_widget.setLayout(self.layout)
+        self.main_widget.setLayout(self.layout)
         for widget in self.widgets: self.layout.addWidget(*widget)
         if add_stretch: self.layout.addStretch()
         if spacing is not None: self.layout.setSpacing(spacing)
         self.show()
 
 
-class ProgressArcsWidget(QtWidgets.QWidget):
+class BaseWidget(QtWidgets.QWidget):
+    """A basic widget class, meant to be overridden by other widgets."""
+    def __init__(self, parent: QtWidgets.QWidget):
+        super().__init__(parent)
+        self.setFont(parent.font())
+        if hasattr(parent, 'default_color'): self.default_color = parent.default_color
+        else: self.default_color = QColor(QtCore.Qt.GlobalColor.black)
+
+    @classmethod
+    def ghetto_inherit(cls, child, parent):
+        """A temporary workaround for widgets which inherit from other classes that break multiple inheritance with BaseWidget.
+        Currently, only pyqtgraph's PlotWidget."""
+        child.setFont(parent.font())
+        if hasattr(parent, 'default_color'):
+            child.default_color = parent.default_color
+        else:
+            child.default_color = QColor(QtCore.Qt.GlobalColor.black)
+
+
+class ArcsWidget(BaseWidget):
+    def __init__(self, parent: QtWidgets.QWidget, percs: Union[list, Callable], percent: bool = True, size: int = None,
+                 update_interval: Union[int, None] = 1000, arccol: QColor = None, arcthic: int = 0,
+                 arcstart: float = 270., arcspan: float = -270., arcspace: int = None):
+        """Concentric arcs showing the percentage of each of the items in percs. The first item in the list is the outermost arc.
+        :param parent: the parent widget of this widget, usually the main window.
+        :param percs: either a list of commands or a single function/command that produces a list. Results must match the percent argument.
+        :param percent: whether percs is in percentage (0-100) or decimal (0-1).
+        :param size: the radius of the arcs.
+        :param update_interval: the time in ms between calls to the percs function(s). Can be None if you call do_cmds() manually.
+        :param arccol: the color of the arcs as a Qt color. Leave as None to use the parent widget's default color.
+        :param arcthic: the thickness of the arcs in pixels. Set to 0 to use half the text height.
+        :param arcstart: the angle in degrees to start drawing the arc at, relative to the x-axis and moving counter-clockwise.
+        :param arcspan: the angle in degrees the arc should span in total; positive moves counter-clockwise.
+        :param arcspace: the spacing between the centers of each arc. Leave it as None to use the font's line spacing.
+        """
+        super().__init__(parent)
+        if size is None: size = round(parent.height() / 10)
+        self.setFixedSize(size, size)
+        self.percs = percs
+        self.percent = percent
+        self._percs_now = None
+        self.arccol = self.default_color if arccol is None else arccol
+        self.arcstart = arcstart
+        self.arcspan = arcspan
+        if arcthic == 0: arcthic = round(self.fontMetrics().height() / 2)
+        self.arcthic = arcthic
+        if arcspace is None: arcspace = self.fontMetrics().lineSpacing()
+        self.arcspace = arcspace
+        if update_interval:
+            self.update_interval = update_interval
+            self.timer = QtCore.QTimer()
+            self.timer.timeout.connect(self.do_cmds)
+            self.timer.start(self.update_interval)
+        self.do_cmds()
+
+    def do_cmds(self):
+        if type(self.percs) == list:
+            self._percs_now = [float(i) for i in self.percs]
+        else:
+            self._percs_now = list(self.percs())
+        if self.percent: self._percs_now = [i/100 for i in self._percs_now]
+        self.update()
+
+    def center_at(self, x: int, y: int) -> None:
+        """Convenience function to move the center of the arcs to the given coordinates."""
+        offset = round(self.height() / 2)
+        self.move(x - offset, y - offset)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(self.arccol, max(self.arcthic // 4, 1), QtCore.Qt.PenStyle.SolidLine)
+        pen.setCapStyle(QtCore.Qt.PenCapStyle.FlatCap)
+        painter.setPen(pen)
+        for i, perc in enumerate(self._percs_now):
+            ioff = i * 2 * self.arcspace + self.arcthic
+            arcsize = self.height() - ioff
+            ioff = round(ioff / 2)
+            painter.drawArc(ioff, ioff, arcsize, arcsize, self.arcstart * 16, self.arcspan * 16)
+            pen.setWidth(self.arcthic)
+            painter.setPen(pen)
+            painter.drawArc(ioff, ioff, arcsize, arcsize, self.arcstart * 16, round(self.arcspan * perc * 16))
+            pen.setWidth(max(self.arcthic // 4, 1))
+            painter.setPen(pen)
+        painter.end()
+
+
+class ProgressArcsWidget(BaseWidget):
+    pos_options = ("bottom left", "bottom right", "top right", "top left")
+
     def __init__(self, parent: QtWidgets.QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
-                 title: Union[JITstring, str] = None, height: int = None, update_interval: int = 1000,
-                 arccol: QColor = QtCore.Qt.GlobalColor.gray, arcthic: float = 0.6):
+                 percent: bool = True, title: Union[JITstring, str] = None, height: int = None, update_interval: int = 1000,
+                 arccol: QColor = None, arcthic: float = 0.6, arcpos: str = "top left"):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
         :param text: the text for the arcs to be drawn around.
-        :param percs: either a list of commands or a single function/command that produces a list. Results must resemble a float between 0 and 100.
+        :param percs: either a list of commands or a single function/command that produces a list. Results must match the percent argument.
+        :param percent: whether the results of percs are in percent (0-100) or decimal (0-1).
         :param height: the height of the widget in pixels.
         :param update_interval: the time in ms between calls to the percs function(s)
-        :param arccol: the color of the arcs as a Qt color.
+        :param arccol: the color of the arcs as a Qt color. Leave as None to use the parent widget's default color.
         :param arcthic: the thickness of the arcs relative to the text height. Set to 0 to auto-match the default underline position.
         :param title: an optional title that sits above the text.
+        :param arcpos: where to place the arcs; one of ["top left", "top right", "bottom left", "bottom right"]
         """
         super().__init__(parent)
         if height is None: height = round(parent.height() / 10)
         self.setFixedSize(parent.width(), height)
         self.text = text
-        self.setFont(parent.font())
-        self.percs = percs
-        self._percs_now = None
         self.update_interval = update_interval
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.do_cmds)
-        self.arccol = arccol
         fonth = self.fontMetrics().height()
         if arcthic == 0.:
-            self.arcthic = (fonth - self.fontMetrics().underlinePos()) / 2
+            arcthic = (fonth - self.fontMetrics().underlinePos()) / 2
         else:
-            self.arcthic = fonth * arcthic
+            arcthic = fonth * arcthic
+        arcpos = arcpos.lower()
+        if arcpos not in self.pos_options:
+            raise ValueError(f"arcpos {arcpos} is invalid: must be one of {self.pos_options}.")
         self.label_wrapper = QtWidgets.QWidget(self)
         self.layout = QtWidgets.QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setDirection(self.layout.Direction.BottomToTop)
+        self.layout.setDirection(self.layout.Direction.BottomToTop if 'top' in arcpos else self.layout.Direction.TopToBottom)
         self.label_wrapper.setLayout(self.layout)
         self.label = TextWidget(self)
         self.label.setIndent(0)
@@ -117,76 +212,50 @@ class ProgressArcsWidget(QtWidgets.QWidget):
         self.layout.addWidget(self.label)
         self.layout.addStretch(1)
         self.title = title
-        self.arcsize = height
-        offset = round((self.arcsize - round(
-            max(self.arcthic, (self.fontMetrics().lineSpacing() + self.arcthic) / 2))) / 2 + self.arcthic)
-        self.label_wrapper.setGeometry(offset, offset, self.width() - offset, self.height() - offset)
+        arcsize = self.height() - round(max((self.fontMetrics().lineSpacing() - arcthic) / 2, 0))
+        offset = round(arcsize / 2)
+        yoff = offset if "top" in arcpos else 0
+        xoff = offset if "left" in arcpos else 0
+        self.label_wrapper.setGeometry(xoff, yoff, self.width() - offset, self.height() - offset)
+        arcstart = 90 * self.pos_options.index(arcpos)
+        self.arcs = ArcsWidget(self, percs, percent, arcsize, None, arccol, arcthic, arcstart, -270)
+        ypos = yoff if yoff != 0 else self.height() - offset
+        xpos = xoff if xoff != 0 else self.width() - offset
+        self.arcs.center_at(xpos, ypos)
         if title is not None:
             self.title_label = TextWidget(self)
             self.layout.addWidget(self.title_label)
-            titleoff = offset - self.fontMetrics().lineSpacing()
-            self.label_wrapper.setGeometry(offset, titleoff, self.width() - offset, self.height() - titleoff)
+            ls = self.fontMetrics().lineSpacing()
+            self.label_wrapper.setGeometry(xoff, max(yoff - ls, 0), self.width() - offset, self.height() - offset + ls)
         self.label.setAlignment(QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignBottom)
         self.label.setWordWrap(True)
         if self.update_interval: self.timer.start(self.update_interval)
         self.do_cmds()
 
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        lh = self.fontMetrics().lineSpacing()
-        xoff = round(self.arcthic / 2)
-        yoff = round(lh / 2 - self.fontMetrics().underlinePos())  # remove dead space below line to center towards where the text actually appears
-        for i, perc in enumerate(self._percs_now):
-            ioff = i * lh * 2
-            arcsize = self.arcsize - ioff - round(max(self.arcthic, (lh + self.arcthic) / 2))  # right
-            ioff //= 2
-            self.arc(painter, ioff + xoff, ioff + yoff, arcsize, arcsize, 270, -270, self.arcthic // 4)
-            self.arc(painter, ioff + xoff, ioff + yoff, arcsize, arcsize, 270, int(-270 * perc / 100), self.arcthic)
-        painter.end()
-
     def do_cmds(self):
-        if type(self.percs) == list:
-            self._percs_now = [float(i) for i in self.percs]
-        else:
-            self._percs_now = list(self.percs())
         self.label.setText(str(self.text))
         if hasattr(self, 'title_label'): self.title_label.setText(str(self.title))
+        self.arcs.do_cmds()
         self.update()
 
-    def arc(self, painter, x, y, w, h, start, span, thickness):
-        """
-        Draws a solid arc using the given painter and self.arccol for color.
-        :param painter: the QPainter object to use for drawing.
-        :param x: the x coordinate to begin drawing at, relative to this widget.
-        :param y: the y coordinate to begin drawing at, relative to this widget.
-        :param w: the width of the final shape in pixels.
-        :param h: the height of the final shape in pixels.
-        :param start: the angle (in degrees) to start the arc at.
-        :param span: the angle (in degrees) the arc should span in total.
-        :param thickness: the line thickness to use for the arc, in pixels.
-        """
-        painter.setPen(QPen(self.arccol, thickness, QtCore.Qt.PenStyle.SolidLine))
-        painter.drawArc(x, y, w, h, start * 16, span * 16)
 
-
-class ProgressBarWidget(QtWidgets.QWidget):
+class ProgressBarWidget(BaseWidget):
     def __init__(self, parent: QtWidgets.QWidget, perc: Callable = None, height: int = None, update_interval: int = None,
-                 barcol: QColor = QtCore.Qt.GlobalColor.white, bgcol: QColor = QtCore.Qt.GlobalColor.gray, squareness: float = 3):
+                 barcol: QColor = QtCore.Qt.GlobalColor.white, bgcol: QColor = None, squareness: float = 3):
         """A progress bar that can be manually updated or given a command and an update interval for automatic updates.
         :param parent: the parent widget of this widget, usually a sub-widget of the main window.
         :param perc: a function/command that produces a float between 0 and 1.
         :param height: the height of the widget in pixels. If none, the height is a tenth of the parent widget's.
         :param update_interval: the time in ms between calls to the perc function. Only relevant if perc is given too.
         :param barcol: the color of the bar as a Qt color.
-        :param bgcol: the color of the unfilled portion of the bar
+        :param bgcol: the color of the unfilled portion of the bar as a Qt color. Leave as None to use the parent widget's default color.
         :param squareness: how square the corners should be. Radius of curvature is height divided by this.
         """
         super().__init__(parent)
         if height is None: height = round(parent.height() / 10)
         self.setFixedHeight(height)
-        self.barcol = barcol
-        self.bgcol = bgcol
+        self.barcol = QColor(barcol)
+        self.bgcol = QColor(bgcol) if bgcol is not None else self.default_color
         self._progress = 0
         self.squareness = squareness
         pol = self.sizePolicy()
@@ -223,10 +292,10 @@ class ProgressBarWidget(QtWidgets.QWidget):
         painter.end()
 
 
-class GraphWidget(pg.PlotWidget):
+class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but currently using a workaround
     def __init__(self, parent: QtWidgets.QWidget, title: Union[JITstring, str], getdata: Callable, height: int = -1,
                  update_interval: int = 500, time_span: int = 60000, yrange=(0, 100),
-                 ylabel_str_fn=str, linecolor=(128, 128, 128, 255), linewidth: float = None):
+                 ylabel_str_fn=str, linecolor=None, linewidth: float = None, lines: int = 1):
         """
         A widget showing a graph with time as the x-axis and a title.
         :param parent: the parent widget of this widget, usually the main window.
@@ -238,18 +307,21 @@ class GraphWidget(pg.PlotWidget):
         :param yrange: the range for the y-axis, as a tuple with (min, max).
         :param ylabel_str_fn: a function returning the labels for the y-axis. Must take a y value and return a str.
         :param linecolor: the color of the graph. Can be (R,G,B,[A]) tuple (values from 0-255), "#RGB" or "#RRGGBBAA" hex strings, QColor, etc.
-            See documentation for pyqtgraph.mkColor() for all options.
+            See documentation for pyqtgraph.mkColor() for all options. Leave as None to use the parent widget's default color.
         :param linewidth: the width of the line.
+        :param lines: how many lines to be drawn - if greater than 1, getdata must return a list of the multiple line data.
         """
         super().__init__(parent)
+        BaseWidget.ghetto_inherit(self, parent)
         if height == -1: height = round(parent.height()/10)
         if height is not None: self.setFixedHeight(height)
         self.graph_title = title
-        self.setFont(parent.font())
+        if linecolor is None: linecolor = self.default_color
         self.xs = list(range(time_span // update_interval))
-        self.ys = [0] * len(self.xs)
+        self.ys = [0] * len(self.xs) if lines == 1 else [[0] * len(self.xs)] * lines
         self.update_interval = update_interval
         self.getdata = getdata
+        self.lines = lines
         self.setTitle(title, size=f"{self.fontInfo().pixelSize()}px")
         self.getPlotItem().titleLabel.item.setFont(self.font())
         self.setStyleSheet("background-color: transparent;")
@@ -265,19 +337,27 @@ class GraphWidget(pg.PlotWidget):
             tickstrs = [ylabel_str_fn(i/(num_ticks - 1) * dy) for i in range(num_ticks)]
             ticks = [(i * (1 - tick_offset) / (num_ticks - 1) + tick_offset) * dy for i in range(num_ticks)]
             self.getAxis('left').setTicks([list(zip(ticks, tickstrs)), []])
-        self.data_line = self.plot(self.xs, self.ys, pen=pen)
+        if lines == 1: self.data_line = self.plot(self.xs, self.ys, pen=pen)
+        else: self.data_lines = self.multiDataPlot(x=self.xs, y=self.ys, pen=pen)
         self.timer = QtCore.QTimer()
         self.timer.setInterval(update_interval)
         self.timer.timeout.connect(self.update_plot_data)
         self.timer.start()
 
     def update_plot_data(self):
-        self.ys.pop(0)
-        self.ys.append(float(self.getdata()))
-        self.data_line.setData(self.xs, self.ys)
+        if self.lines == 1:
+            self.ys.pop(0)
+            self.ys.append(float(self.getdata()))
+            self.data_line.setData(self.xs, self.ys)
+        else:
+            data = self.getdata()
+            for i, y in enumerate(self.ys):
+                y.pop(0)
+                y.append(data[i])
+                self.data_lines[i].setData(self.xs, y)
 
 
-class _MediaListFramework(QtWidgets.QWidget):
+class _MediaListFramework(BaseWidget):
     def __init__(self, parent: QtWidgets.QWidget, imgsize: int = 200, butsize: int = 50, update_interval: int = 250):
         """
         A skeleton of a MediaListWidget for platform-specific subclasses to inherit from. Does nothing on its own.
@@ -316,14 +396,19 @@ class _MediaListFramework(QtWidgets.QWidget):
         self.mediawidgets[name] = widget
 
 
-class _MediaFramework(QtWidgets.QWidget):
-    def __init__(self, parent: QtWidgets.QWidget, imgsize: int = None, butsize: int = None, update_interval: int = 250):
+class _MediaFramework(BaseWidget):
+    def __init__(self, parent: QtWidgets.QWidget, imgsize: int = None, butsize: int = None, update_interval: int = 250,
+                 primary_color: Union[str, QColor] = None, secondary_color: Union[str, QColor] = 'white'):
         """
         A skeleton of a MediaWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the MediaListWidget controlling it.
         :param imgsize: the size of the album art in pixels.
         :param butsize: the size of the media control buttons in pixels.
         :param update_interval: the time in ms between updates for progress bars.
+        :param primary_color: the color to use for most of the widget. Accepts a QColor or CSS color strings. Leave as None to use
+        the parent widget's default color.
+        :param secondary_color: the color to use for buttons when the mouse is hovering over them, and for the progress bar.
+        Accepts a QColor or CSS color strings.
         """
         super().__init__(parent)
         self.albumart = None
@@ -335,7 +420,7 @@ class _MediaFramework(QtWidgets.QWidget):
         self.update_interval = update_interval
         self.displaytext = ""
         self.playing = False
-        self.setFont(parent.font())
+        if primary_color is None: primary_color = self.default_color
 
         self.infolabel = QtWidgets.QLabel(self)
         self.infolabel.setWordWrap(True)
@@ -357,23 +442,16 @@ class _MediaFramework(QtWidgets.QWidget):
         self.info_layout.addWidget(self.playernamelabel)
 
         self.ctrllayout = QtWidgets.QHBoxLayout()
-        self.setStyleSheet("""
+        style = """
         QPushButton{
-            background-color: grey;
+            background-color: $c1;
         } 
         QPushButton:hover{
-            background-color: white;
-        }
-        QProgressBar{
-            min-height: 12px;
-            max-height: 12px;
-            border-radius: 4px;
-            background-color: grey;
-        }
-        QProgressBar::chunk{
-        background-color: white; 
-        border-radius: 4px;
-        }""")
+            background-color: $c2;
+        }"""
+        style = style.replace('$c1', primary_color if type(primary_color) == str else f'rgba{primary_color.getRgb()}')
+        style = style.replace('$c2', secondary_color if type(secondary_color) == str else f'rgba{secondary_color.getRgb()}')
+        self.setStyleSheet(style)
 
         self.buttons = [QtWidgets.QPushButton(), QtWidgets.QPushButton(), QtWidgets.QPushButton()]
         for but in self.buttons:
@@ -389,7 +467,7 @@ class _MediaFramework(QtWidgets.QWidget):
         for but, fn in zip(self.buttons, (self.do_prev, self.do_playpause, self.do_next)):
             but.clicked.connect(fn)
 
-        self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5))
+        self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5), bgcol=primary_color, barcol=secondary_color)
         pol = self.pbar.sizePolicy()
         pol.setRetainSizeWhenHidden(True)
         self.pbar.setSizePolicy(pol)
@@ -480,8 +558,9 @@ class HrWidget(QtWidgets.QFrame):
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
 
 
-class TextWidget(QtWidgets.QLabel):
-    def __init__(self, parent, text: Union[JITstring, str] = None, alignment: str = "Center", wordwrap: bool = True, update_interval: int = None):
+class TextWidget(QtWidgets.QLabel, BaseWidget):
+    def __init__(self, parent, text: Union[JITstring, str] = None, alignment: str = "Center", wordwrap: bool = True,
+                 update_interval: int = None):
         """
         A simple widget for showing text; can be a dynamic JITstring or regular static text.
         :param parent: the parent widget containing this one.
@@ -490,16 +569,15 @@ class TextWidget(QtWidgets.QLabel):
         :param wordwrap: whether word wrap should be enabled for the text.
         :param update_interval: how often to refresh the text, if it's dynamic. Leave as None for static text.
         """
-        if text is None: super().__init__(parent)
-        else: super().__init__(str(text), parent)
-        self.setFont(parent.font())
+        super().__init__(parent)
         self.setWordWrap(wordwrap)
         self.setAlignment(getattr(QtCore.Qt.AlignmentFlag, "Align" + alignment))
+        self.get_text = text
         if update_interval is not None:
-            self.get_text = text
             self.timer = QtCore.QTimer()
             self.timer.timeout.connect(self.do_cmds)
             self.timer.start(update_interval)
+        self.do_cmds()
 
     def do_cmds(self):
         self.setText(str(self.get_text))
