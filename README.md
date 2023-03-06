@@ -2,7 +2,7 @@
 
 PyWidgets is a desktop widget manager using Qt and Python, built to be cross-platform and fully customizable.
 Widgets are a small window of their own which can display a certain type of information (text, times, numbers, etc.) in a given style.
-A sample widget is included to show the capabilities without any coding required, but the intent is for users to extend the project through adding new data sources (requiring minimal coding) or designing new widgets (requiring coding and/or Qt familiarity) or both.
+A sample page of widgets is included to show the capabilities without any coding required, but the intent is for users to extend the project through adding new data sources (requiring minimal coding) or designing new widgets (requiring coding and/or Qt familiarity) or both.
 
 ![sample widget image](pictures/sample_widget_example_linux.jpg "An example of a widget setup")
 ## Examples
@@ -60,7 +60,7 @@ section and then clone the project with `git clone https://github.com/shawnc722/
 It isn't required, but the default font is [Inter](https://github.com/rsms/inter) and if it's not on your system already  
 you may want to install it. If not, a different font will be automatically chosen - though you can also just specify one yourself.
 
-To start up the sample widget, just run the module: `python -m pywidgets`.
+To start up the sample page, just run the module: `python -m pywidgets`.
 
 ## Usage
 

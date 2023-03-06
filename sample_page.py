@@ -24,7 +24,7 @@ window.add_widgets(
      pywidgets.HrWidget()])
 
 window.add_widgets(
-    [pywidgets.GraphWidget(window, "<b>CPU Usage</b>", cpu_cmds['overall usage']),
+    [pywidgets.GraphWidget(window, "<b>CPU Usage</b>", cpu_cmds['per core usage'], lines=int(cpu_cmds['cpu thread count'])),
      pywidgets.GraphWidget(window, "<b>RAM Usage</b>", mem_cmds['used bytes'],
                            yrange=(0, mem_cmds['total bytes'].run()), ylabel_str_fn=bytes2human),
      pywidgets.GraphWidget(window, "<b>Network Download</b>", net_cmds['current down (bytes)'],
