@@ -1,6 +1,5 @@
-from PyQt6.QtGui import QPixmap, QCloseEvent
+from PyQt6.QtGui import QPixmap
 from datetime import datetime, timedelta
-from typing import Union
 from pywidgets.widgets import _MediaListFramework, _MediaFramework, BaseWidget, \
     schedule, run_on_app_start, call_threadsafe
 from asyncio import sleep
@@ -9,13 +8,11 @@ from asyncio import sleep
 from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as SessionManager,
     GlobalSystemMediaTransportControlsSession as Session,
-    GlobalSystemMediaTransportControlsSessionMediaProperties as Metadata,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus
 )
 from winsdk.windows.storage.streams import DataReader, IRandomAccessStreamReference
 from winsdk.windows.foundation import AsyncStatus
 
-SECOND = timedelta(seconds=1)
 NOTIME = timedelta(0)
 
 
@@ -55,7 +52,7 @@ class MediaListWidget(_MediaListFramework):
 
 
 class MediaWidget(_MediaFramework):
-    inverse_playback_info = {getattr(PlaybackStatus, attr):attr for attr in dir(PlaybackStatus) if attr == attr.upper()}
+    inverse_playback_info = {getattr(PlaybackStatus, attr): attr for attr in dir(PlaybackStatus) if attr == attr.upper()}
 
     def __init__(self, parent: BaseWidget, session: Session, **kwargs):
         """
@@ -183,7 +180,7 @@ async def winrt_to_async(winrt_fn, *args): return await winrt_fn(*args)
 def win_schedule(winrt_fn, callback, *args): return schedule(winrt_to_async(winrt_fn, *args), callback)
 
 
-async def read_thumb_stream(stream_ref: IRandomAccessStreamReference) -> Union[QPixmap, None]:
+async def read_thumb_stream(stream_ref: IRandomAccessStreamReference) -> QPixmap | None:
     open_stream = await stream_ref.open_read_async()
     input_stream = open_stream.get_input_stream_at(0)
     reader = DataReader(input_stream)
@@ -200,7 +197,3 @@ async def read_thumb_stream(stream_ref: IRandomAccessStreamReference) -> Union[Q
     open_stream.close()
     reader.close()
     return img
-
-
-def show(obj):
-    return {prop: getattr(obj, prop) for prop in dir(obj) if prop[0] != '_'}
