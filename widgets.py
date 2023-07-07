@@ -586,7 +586,6 @@ class _MediaFramework(BaseWidget):
         self.layout.addWidget(self.imglabel)
         self.info_layout.addWidget(self.infolabel)
         self.info_layout.addWidget(self.playernamelabel)
-        self.setStyleSheet("border: 1px solid red;")
 
         self.ctrllayout = QtWidgets.QHBoxLayout()
         style = """

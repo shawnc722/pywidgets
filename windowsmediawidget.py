@@ -37,6 +37,7 @@ class MediaListWidget(_MediaListFramework):
         self.session_changed_token = self.manager.add_sessions_changed(
             lambda man, arg: call_threadsafe(self.sessions_changed, man, arg)
         )
+        self.sessions_changed(self.manager)
 
     def sessions_changed(self, manager: SessionManager = None, args=None):
         current = {s.source_app_user_model_id: s for s in manager.get_sessions()}
