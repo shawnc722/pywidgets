@@ -1,0 +1,14 @@
+make GUI editor with list of sources - each source is a .py, grab classes from each source and display (names) in list. 
+Choosing one prompts for a data source? Add dict to .py files with default params to support GUI viewer rather than names list?
+on choice of widget, prompt for source with create jitstring button, button creates textbox fstring where clicking a source adds {source}
+try/except the widget on preview click, and have export button to give resulting code with import/jitstring/pycmd/widget combo (no app or window)
+so you can copy/paste into page script.
+
+
+change sample_data.py to data_sources.py?
+change sample to default - default_page.py, default_data.py
+terminology:
+page full of widgets, each widget takes data?
+use `page.py` to refer to custom pages?
+
+look into replacing JITstrings with functools.partial or others?
