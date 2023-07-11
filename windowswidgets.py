@@ -1,5 +1,7 @@
 from PyQt6.QtGui import QPixmap
 from datetime import datetime, timedelta
+
+import pywidgets
 from pywidgets.widgets import _MediaListFramework, _MediaFramework, BaseWidget, \
     schedule, run_on_app_start, call_threadsafe
 from asyncio import sleep
@@ -10,10 +12,19 @@ from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSession as Session,
     GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus
 )
+
+from winsdk.windows.ui.notifications.management import UserNotificationListener, UserNotificationListenerAccessStatus
+from winsdk.windows.ui.notifications import UserNotificationChangedEventArgs as NotifArgs, \
+    UserNotificationChangedKind as NotifChangedKind, NotificationKinds
+
 from winsdk.windows.storage.streams import DataReader, IRandomAccessStreamReference
 from winsdk.windows.foundation import AsyncStatus
 
 NOTIME = timedelta(0)
+
+
+def enum_to_rdict(enum):
+    return {getattr(enum, attr): attr for attr in dir(enum) if attr == attr.upper()}
 
 
 class MediaListWidget(_MediaListFramework):
@@ -53,7 +64,7 @@ class MediaListWidget(_MediaListFramework):
 
 
 class MediaWidget(_MediaFramework):
-    inverse_playback_info = {getattr(PlaybackStatus, attr): attr for attr in dir(PlaybackStatus) if attr == attr.upper()}
+    inverse_playback_info = enum_to_rdict(PlaybackStatus)
 
     def __init__(self, parent: BaseWidget, session: Session, **kwargs):
         """
@@ -173,6 +184,50 @@ class MediaWidget(_MediaFramework):
         self.session.remove_media_properties_changed(self.metadata_token)
         self.session.remove_playback_info_changed(self.playback_token)
         self.session.remove_timeline_properties_changed(self.timeline_token)
+
+    def closeEvent(self, a0):
+        self.handle_removed()
+        super().closeEvent(a0)
+
+
+class NotificationWidget(pywidgets.NotificationWidgetFramework):
+    inverse_access_status = enum_to_rdict(UserNotificationListenerAccessStatus)
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.manager = UserNotificationListener.current
+        self.access_status = self.manager.get_access_status()
+        self.token = None
+        if self.access_status == UserNotificationListenerAccessStatus.ALLOWED:
+            self.subscribe()
+        elif self.access_status == UserNotificationListenerAccessStatus.UNSPECIFIED:
+            run_on_app_start(win_schedule, self.manager.request_access_async, self.handle_access)
+
+        print(self.access_status, self.inverse_access_status[self.access_status])
+
+    def handle_notif(self, listener: UserNotificationListener, args: NotifArgs):
+        if args.change_kind == NotifChangedKind.ADDED:
+            notif = listener.get_notification(args.user_notification_id)
+            print(notif, notif.notification, notif.app_info)
+        elif args.change_kind == NotifChangedKind.REMOVED:
+            pass # remove notif
+        else:
+            raise ValueError("Invalid UserNotificationChangedKind:", args.change_kind)
+
+    def subscribe(self):
+        self.token = self.manager.add_notification_changed(
+            lambda lis, args: call_threadsafe(self.handle_notif, lis, args)
+        )
+
+    def handle_access(self, access: int):
+        if access == UserNotificationListenerAccessStatus.ALLOWED: self.subscribe()
+        else: raise PermissionError("Access must be granted for notification access on Windows.")
+
+    def closeEvent(self, a0):
+        self.manager.remove_notification_changed(self.token)
+        print("closing out properly")
+        super().closeEvent(a0)
+
 
 
 async def winrt_to_async(winrt_fn, *args): return await winrt_fn(*args)

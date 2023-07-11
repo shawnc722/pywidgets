@@ -5,9 +5,9 @@ from pywidgets.widgets import *
 
 
 if sys.platform == "linux":
-    from pywidgets.linuxmediawidget import MediaListWidget
+    from pywidgets.linuxwidgets import MediaListWidget
 elif sys.platform == "win32":
-    from pywidgets.windowsmediawidget import MediaListWidget
+    from pywidgets.windowswidgets import MediaListWidget, NotificationWidget
 elif sys.platform == "darwin":
     pass
 

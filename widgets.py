@@ -2,7 +2,7 @@ from typing import Union, Callable
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect
-from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, QScreen, QResizeEvent
+from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, QScreen, QResizeEvent, QBitmap
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
 import numpy as np
@@ -718,6 +718,11 @@ class _MediaFramework(BaseWidget):
         self._redraw_playpause_button()
 
 
+class NotificationWidgetFramework(BaseWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+
 class HrWidget(QtWidgets.QFrame, BaseWidget):
     def __init__(self, parent, height: int = 3, color: str = None):
         """
@@ -788,7 +793,7 @@ def get_application(*args, **kwargs) -> QtWidgets.QApplication:
     return QtWidgets.QApplication(*args, **kwargs) if args or kwargs else QtWidgets.QApplication([])
 
 
-def run_application(app, disable_async=False):
+def run_application(app: QtWidgets.QApplication, disable_async=False):
     if qtinter is None or disable_async:
         app.exec()
     else:
