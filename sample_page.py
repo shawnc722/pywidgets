@@ -30,14 +30,14 @@ per_core = cpu_cmds['per core usage']
 num_cores = int(cpu_cmds['cpu thread count'])
 title = "<b>CPU Usage</b>"
 # this linecolor just uses your default color at half opacity for the cpu graph to tone down the mess of lines
-linecolor = tuple(val if i < 3 else val//2 for i, val in enumerate(window.default_color.getRgb()))
+linecolor = tuple(val if i < 3 else val//2 for i, val in enumerate(window.palette().window().color().getRgb()))
 if add_cores_avg:
     def fn():
         l = per_core()
         l += [sum(l)/num_cores]
         return l
     per_core_w_avg = PyCmd(fn)
-    lcs = [linecolor] * num_cores + [(255, 255, 255, 255)]  # add a white line for the average
+    lcs = [linecolor] * num_cores + [window.palette().light().color().getRgb()]  # add a lighter color line for the avg
     window.add_widget(pywidgets.GraphWidget(window, title, per_core_w_avg, lines=num_cores+1, linecolors=lcs))
 else:
     pywidgets.GraphWidget(window, title, per_core, lines=num_cores, linecolor=linecolor)
@@ -80,6 +80,8 @@ if cur_OS == 'Linux':
         window.add_widgets([pywidgets.HrWidget(window), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
     except IndexError:
         pass  # if any of the devices or labels are wrong, just move on
+
+#window.add_widget(pywidgets.NotificationWidget(window))
 
 window.finish_init()
 pywidgets.run_application(app)

@@ -1,8 +1,9 @@
 from typing import Union, Callable
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, QTimer, QPoint, QRect
-from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, QScreen, QResizeEvent, QBitmap
+from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot
+from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, QScreen, QResizeEvent, QPalette, \
+    QMouseEvent, QAction
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
 import numpy as np
@@ -16,21 +17,27 @@ except ImportError: asyncio, qtinter, loop = None, None, None
 
 
 class Window(QtWidgets.QMainWindow):
-    default_stylesheet = "color: grey; font-family: Inter, Helvetica, Roboto, sans-serif;"
+    default_stylesheet = "font-family: Inter, Helvetica, Roboto, sans-serif;"
+    default_palette = QPalette()
+    default_palette.setColor(QPalette.ColorRole.Window, QColor('grey'))
+    default_palette.setColor(QPalette.ColorRole.WindowText, QColor('grey'))
+    default_palette.setColor(QPalette.ColorRole.Light, QColor('white'))
 
-    def __init__(self, font_size_vh: float = 1.0, default_color: Union[str, QColor, tuple] = None,
-                 background_color: tuple[int, int, int, int] = None,
-                 stylesheet: str = "default", maintain_position: str = "bottom",
+    def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
+                 background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
                  get_geometry: Callable[[QRect], list[int, int, int, int]] = None, flags: Qt.WindowType = None):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
 
         :param font_size_vh: the font size, in css vh (percentage of screen height) to use.
-        :param default_color: the color for all widgets to default to, if not provided a different color as an argument.
-            Accepts anything that can be cast to a QColor. Defaults to the first instance of 'color' in the stylesheet.
+        :param stylesheet: a css stylesheet for all the widgets - usually contains at least a font-family.
+            Using a 'color' tag will overwrite the palette's WindowText color.
+        :param palette: the colors for all widgets to default to, if not provided a different color as an argument.
+            Takes a QT QPalette object. The stylesheet's 'color' tag, if there is one, will overwrite the Window color.
+            The Window color is typically the main color for widgets, WindowText is for text, and Light for highlights.
         :param background_color: an RGBA tuple for the background of the page. Defaults to fully transparent.
-        :param stylesheet: a css stylesheet for all the widgets - usually contains at least a color and a font-family.
+            Use this argument instead of setting it in stylesheet to avoid each widget's background color stacking.
         :param maintain_position: where the window should stay - "bottom" to appear part of the desktop, "top" to stay
             on top, or "default" to behave like a normal window.
         :param get_geometry: the method that decides placement and size of the window. Must take a QRect of available
@@ -61,8 +68,8 @@ class Window(QtWidgets.QMainWindow):
 
         if stylesheet == 'default':  stylesheet = self.default_stylesheet
         self.setStyleSheet(stylesheet)
-        self.default_color = QColor(default_color if default_color is not None else
-                                    stylesheet.partition('color:')[2].partition(';')[0].strip())  # grab b/w color: & ;
+        if palette is None: palette = self.default_palette
+        QtWidgets.QApplication.instance().setPalette(palette)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
         self.handle_resize()
 
@@ -72,11 +79,35 @@ class Window(QtWidgets.QMainWindow):
                                                                         'rgba({},{},{},{})'.format(*background_color) +
                                                                         ';}')
         self.setCentralWidget(self.main_widget)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.right_click_menu = QtWidgets.QMenu(self)
+        self.right_click_menu.setStyleSheet('''
+            QMenu::item { padding: 2% 10%; }
+        ''')
+        self.customContextMenuRequested.connect(self.right_click_performed)
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.exit_clicked)
+        self.right_click_menu.addAction(exit_action)
         self.widgets = []
 
     def resizeEvent(self, a0: QResizeEvent):
         super().resizeEvent(a0)
         self.handle_resize()
+
+    @pyqtSlot()
+    def exit_clicked(self, *args):
+        self.handle_removed()
+        self.close()
+        QtWidgets.QApplication.instance().quit()
+
+    @pyqtSlot(QPoint)
+    def right_click_performed(self, a0: QPoint):
+        self.right_click_menu.popup(self.mapToGlobal(a0))
+
+
+    def handle_removed(self):
+        for widget in QtWidgets.QApplication.allWidgets():
+            if widget is not self and hasattr(widget, 'handle_removed'): widget.handle_removed()
 
     def add_widget(self, widget, *args) -> None:
         """
@@ -128,28 +159,7 @@ class Window(QtWidgets.QMainWindow):
         self.show()
 
 
-class BaseWidget(QWidget):
-    """A basic widget class, meant to be overridden by other widgets."""
-    def __init__(self, parent: [Window, QWidget]):
-        super().__init__(parent)
-        if hasattr(parent, 'default_color'): self.default_color = parent.default_color
-        elif hasattr(parent, 'parent') and hasattr(parent.parent, 'default_color'):
-            self.default_color = parent.parent.default_color
-        else: self.default_color = QColor(Qt.GlobalColor.black)
-
-    @classmethod
-    def ghetto_inherit(cls, child, parent):   # TODO: NEEDS RESIZEEVENT SUPPORT (or better, just fix the og problem)
-        """A temporary workaround for widgets which inherit from other classes that break multiple inheritance with BaseWidget.
-        Currently, only pyqtgraph's PlotWidget."""
-        if hasattr(parent, 'default_color'):
-            child.default_color = parent.default_color
-        elif hasattr(parent, 'parent') and hasattr(parent.parent, 'default_color'):
-            child.default_color = parent.parent.default_color
-        else:
-            child.default_color = QColor(Qt.GlobalColor.black)
-
-
-class ArcsWidget(BaseWidget):
+class ArcsWidget(QWidget):
     def __init__(self, parent: QWidget, percs: Union[list, Callable], percent: bool = True, size: float = 1,
                  update_interval: Union[int, None] = 1000, arccol: QColor = None, arcthic: float = .5,
                  arcstart: float = 270., arcspan: float = -270., arcspace: float = 1):
@@ -170,7 +180,7 @@ class ArcsWidget(BaseWidget):
         self.percs = percs
         self.percent = percent
         self._percs_now = None
-        self.arccol = self.default_color if arccol is None else arccol
+        self.arccol = self.palette().window().color() if arccol is None else arccol
         self.arcstart = arcstart
         self.arcspan = arcspan
         self.arcthic_perc = arcthic
@@ -229,7 +239,7 @@ class ArcsWidget(BaseWidget):
         painter.end()
 
 
-class ProgressArcsWidget(BaseWidget):
+class ProgressArcsWidget(QWidget):
     pos_options = ("bottom left", "bottom right", "top right", "top left")
 
     def __init__(self, parent: QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
@@ -317,9 +327,9 @@ class ProgressArcsWidget(BaseWidget):
         self.update()
 
 
-class ProgressBarWidget(BaseWidget):
+class ProgressBarWidget(QWidget):
     def __init__(self, parent: QWidget, perc: Callable = None, height: int = None, update_interval: int = None,
-                 barcol: QColor = Qt.GlobalColor.white, bgcol: QColor = None, squareness: float = 3):
+                 barcol: QColor = None, bgcol: QColor = None, squareness: float = 3):
         """A progress bar that can be manually updated or given a command and an update interval for automatic updates.
         :param parent: the parent widget of this widget, usually a sub-widget of the main window.
         :param perc: a function/command that produces a float between 0 and 1.
@@ -332,8 +342,8 @@ class ProgressBarWidget(BaseWidget):
         super().__init__(parent)
         if height is None: height = round(parent.height() / 10)
         self.setFixedHeight(height)
-        self.barcol = QColor(barcol)
-        self.bgcol = QColor(bgcol) if bgcol is not None else self.default_color
+        self.barcol = QColor(barcol) if barcol else self.palette().light().color()
+        self.bgcol = QColor(bgcol) if bgcol is not None else self.palette().window().color()
         self._progress = 0
         self.squareness = squareness
         pol = self.sizePolicy()
@@ -370,7 +380,7 @@ class ProgressBarWidget(BaseWidget):
         painter.end()
 
 
-class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but currently using a workaround
+class GraphWidget(pg.PlotWidget):
     def __init__(self, parent: QWidget, title: Union[JITstring, str], getdata: Callable, height: int = -1,
                  update_interval: int = 500, time_span: int = 60000, yrange: tuple = (0, 100), ylabel_str_fn=str,
                  linecolor=None, linecolors: Union[None, list, tuple] = None, linewidth: float = None, lines: int = 1):
@@ -392,12 +402,13 @@ class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but current
         :param lines: how many lines to be drawn - if greater than 1, getdata must return a list of the multiple line data.
         """
         super().__init__(parent, background=None)
-        BaseWidget.ghetto_inherit(self, parent)
         self.setStyleSheet("background-color:transparent;")
         if height == -1: height = round(parent.height()/10)
         if height is not None: self.setFixedHeight(height)
         self.graph_title = title
-        if linecolor is None and linecolors is None: linecolor = self.default_color
+        default_color = parent.palette().window().color()  # use parent palette because the PlotWidget sets its own
+        text_color = parent.palette().windowText().color()
+        if linecolor is None and linecolors is None: linecolor = default_color
         elif linecolors is not None:
             if linecolor is not None:
                 raise AssertionError("linecolor and linecolors arguments to GraphWidget cannot both be given; change one to None.")
@@ -408,15 +419,15 @@ class GraphWidget(pg.PlotWidget):  # also inherits from  BaseWidget, but current
         self.update_interval = update_interval
         self.getdata = getdata
         self.lines = lines
-        self.setTitle(title, size=f"{self.fontInfo().pixelSize()}px", color=self.default_color)
+        self.setTitle(title, size=f"{self.fontInfo().pixelSize()}px", color=text_color)
         self.getPlotItem().titleLabel.item.setFont(self.font())
         bott = self.getAxis('bottom')
         bott.setStyle(showValues=False, tickLength=0)
-        bott.setPen(color=self.default_color)
+        bott.setPen(color=default_color)
         left = self.getAxis('left')
         left.setStyle(tickLength=0, tickAlpha=0, hideOverlappingLabels=False, tickFont=self.font())
-        left.setPen(color=self.default_color)
-        left.setTextPen(color=self.default_color)
+        left.setPen(color=default_color)
+        left.setTextPen(color=text_color)
         self.setXRange(0, time_span, padding=0)  # method is overloaded by pg.ViewBox one at runtime, ignore IDE warning
         if yrange:
             dy = yrange[1] - yrange[0]
@@ -460,7 +471,7 @@ class Visualizer(pg.PlotWidget):
     def __init__(self, parent: QWidget, getdata: Callable, yrange: tuple = None, linecolor=None, linewidth: float = None,
                  update_interval: int = 500):
         """A mirrored line graphing the output of getdata with no axes, labels, or title. Meant to be used in other widgets.
-        :param parent: the parent widget of this widget. Should inherit from BaseWidget or be the main window.
+        :param parent: the parent widget of this widget.
         :param getdata: a function or PyCmd that returns a list of floats. The length of the list must be the same each call.
         :param yrange: the range for the y-axis, as a tuple with (bottom, top).
         :param linecolor: the color of the graph's line. Can be (R,G,B,[A]) tuple (values from 0-255), "#RGB" or "#RRGGBBAA" hex strings, QColor, etc.
@@ -468,8 +479,7 @@ class Visualizer(pg.PlotWidget):
         :param linewidth: the width of the line.
         :param update_interval: how often get_data should be called and the graph updated."""
         super().__init__(parent)
-        BaseWidget.ghetto_inherit(self, parent)
-        if linecolor is None: linecolor = self.default_color
+        if linecolor is None: linecolor = self.palette().window().color()
         ys = np.array(getdata())
         self.xs = np.arange(0, len(ys))
         pen = pg.mkPen(color=linecolor) if linewidth is None else pg.mkPen(color=linecolor, width=linewidth)
@@ -494,7 +504,7 @@ class Visualizer(pg.PlotWidget):
         self.data_lines[1].setData(self.xs, -ys)
 
 
-class _MediaListFramework(BaseWidget):
+class _MediaListFramework(QWidget):
     def __init__(self, parent: QWidget, imgsize: int = None, butsize: int = None, update_interval: int = 250):
         """
         A skeleton of a MediaListWidget for platform-specific subclasses to inherit from. Does nothing on its own.
@@ -542,9 +552,9 @@ class _MediaListFramework(BaseWidget):
             if widget.playing and widget.has_progress: widget.update_timeline()
 
 
-class _MediaFramework(BaseWidget):
+class _MediaFramework(QWidget):
     def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None, butsize: int = None,
-                 primary_color: Union[str, QColor] = None, secondary_color: Union[str, QColor] = 'white'):
+                 primary_color: Union[str, QColor] = None, secondary_color: Union[str, QColor] = None):
         """
         A skeleton of a MediaWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the MediaListWidget controlling it.
@@ -566,7 +576,8 @@ class _MediaFramework(BaseWidget):
         self.displaytext = ""
         self.playing = False
         self.has_progress = True
-        if primary_color is None: primary_color = self.default_color
+        if primary_color is None: primary_color = self.palette().window().color()
+        if secondary_color is None: secondary_color = self.palette().windowText().color()
 
         self.infolabel = QtWidgets.QLabel(self)
         self.infolabel.setWordWrap(True)
@@ -718,12 +729,12 @@ class _MediaFramework(BaseWidget):
         self._redraw_playpause_button()
 
 
-class NotificationWidgetFramework(BaseWidget):
+class NotificationWidgetFramework(QWidget):
     def __init__(self, parent):
         super().__init__(parent)
 
 
-class HrWidget(QtWidgets.QFrame, BaseWidget):
+class HrWidget(QtWidgets.QFrame):
     def __init__(self, parent, height: int = 3, color: str = None):
         """
         A horizontal rule across the window.
@@ -737,11 +748,10 @@ class HrWidget(QtWidgets.QFrame, BaseWidget):
         self.setFrameShape(QtWidgets.QFrame.Shape.HLine)
         self.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Minimum)
-        if color is None: color = 'rgba({},{},{},{})'.format(*self.default_color.getRgb())
-        self.setStyleSheet(f"background-color: {color};")
+        if color is not None: self.setStyleSheet(f"background-color: {color};")
 
 
-class TextWidget(QtWidgets.QLabel, BaseWidget):
+class TextWidget(QtWidgets.QLabel):
     def __init__(self, parent: QWidget, text: Union[JITstring, str] = None, alignment: str = "Center",
                  wordwrap: bool = True, update_interval: int = None):
         """
@@ -791,6 +801,11 @@ def get_application(*args, **kwargs) -> QtWidgets.QApplication:
     :return: the new QApplication instance.
     """
     return QtWidgets.QApplication(*args, **kwargs) if args or kwargs else QtWidgets.QApplication([])
+
+
+def get_current_page() -> Window:
+    """Returns the currently running Page, to avoid messy imports in other scripts."""
+    print(QtWidgets.QApplication.instance().children())
 
 
 def run_application(app: QtWidgets.QApplication, disable_async=False):

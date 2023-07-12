@@ -2,8 +2,7 @@ from PyQt6.QtGui import QPixmap
 from datetime import datetime, timedelta
 
 import pywidgets
-from pywidgets.widgets import _MediaListFramework, _MediaFramework, BaseWidget, \
-    schedule, run_on_app_start, call_threadsafe
+from pywidgets.widgets import _MediaListFramework, _MediaFramework, schedule, run_on_app_start, call_threadsafe, QWidget
 from asyncio import sleep
 
 
@@ -28,7 +27,7 @@ def enum_to_rdict(enum):
 
 
 class MediaListWidget(_MediaListFramework):
-    def __init__(self, parent: BaseWidget, **kwargs):
+    def __init__(self, parent: QWidget, **kwargs):
         """
         A widget that automatically creates and manages MediaWidgets corresponding to each active media source
         on the device.
@@ -66,7 +65,7 @@ class MediaListWidget(_MediaListFramework):
 class MediaWidget(_MediaFramework):
     inverse_playback_info = enum_to_rdict(PlaybackStatus)
 
-    def __init__(self, parent: BaseWidget, session: Session, **kwargs):
+    def __init__(self, parent: QWidget, session: Session, **kwargs):
         """
         A widget for displaying media info from one specific source, usually created and managed by a MediaListWidget.
         :param parent: the parent widget of this widget, usually the MediaListWidget controlling it.
@@ -193,17 +192,11 @@ class MediaWidget(_MediaFramework):
 class NotificationWidget(pywidgets.NotificationWidgetFramework):
     inverse_access_status = enum_to_rdict(UserNotificationListenerAccessStatus)
 
-    def __init__(self, parent):
+    def __init__(self, parent: QWidget):
         super().__init__(parent)
         self.manager = UserNotificationListener.current
-        self.access_status = self.manager.get_access_status()
-        self.token = None
-        if self.access_status == UserNotificationListenerAccessStatus.ALLOWED:
-            self.subscribe()
-        elif self.access_status == UserNotificationListenerAccessStatus.UNSPECIFIED:
-            run_on_app_start(win_schedule, self.manager.request_access_async, self.handle_access)
-
-        print(self.access_status, self.inverse_access_status[self.access_status])
+        self.token = None  # filled out in subscribe
+        run_on_app_start(win_schedule, self.manager.request_access_async, self.handle_access)
 
     def handle_notif(self, listener: UserNotificationListener, args: NotifArgs):
         if args.change_kind == NotifChangedKind.ADDED:
@@ -215,19 +208,28 @@ class NotificationWidget(pywidgets.NotificationWidgetFramework):
             raise ValueError("Invalid UserNotificationChangedKind:", args.change_kind)
 
     def subscribe(self):
+        print("subscribing...")
         self.token = self.manager.add_notification_changed(
             lambda lis, args: call_threadsafe(self.handle_notif, lis, args)
         )
+        print("subscribed successfully")
 
-    def handle_access(self, access: int):
-        if access == UserNotificationListenerAccessStatus.ALLOWED: self.subscribe()
-        else: raise PermissionError("Access must be granted for notification access on Windows.")
+    def handle_access(self, task):
+        access = task.result()
+        if access == UserNotificationListenerAccessStatus.ALLOWED:
+            self.subscribe()
+        elif access == UserNotificationListenerAccessStatus.UNSPECIFIED:
+            print("unspecified access")
+        else:
+            raise PermissionError("Notification access must be granted for notification widgets on Windows.")
+
+    def handle_removed(self):
+        print("closing out properly")
+        self.manager.remove_notification_changed(self.token)
 
     def closeEvent(self, a0):
-        self.manager.remove_notification_changed(self.token)
-        print("closing out properly")
+        self.handle_removed()
         super().closeEvent(a0)
-
 
 
 async def winrt_to_async(winrt_fn, *args): return await winrt_fn(*args)

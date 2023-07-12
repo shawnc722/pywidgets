@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-from PyQt6 import QtCore, QtWidgets
+from PyQt6 import QtCore
 from PyQt6.QtGui import QPixmap
 from time import time
-from pywidgets.widgets import _MediaListFramework, _MediaFramework
+from pywidgets.widgets import _MediaListFramework, _MediaFramework, QWidget
 from PyQt6.QtDBus import QDBusConnection, QDBusInterface
 
 S_TO_MS = 1000000
 
 
 class MediaListWidget(_MediaListFramework):
-    def __init__(self, parent: QtWidgets.QWidget, imgsize: int = None, butsize: int = None, update_interval: int = 250):
+    def __init__(self, parent: QWidget, imgsize: int = None, butsize: int = None, update_interval: int = 250):
         """
         A widget that automatically creates and removes MediaWidgets in response to MPRIS players playing or stopping.
         :param parent: the parent widget of this widget, usually the main window.
@@ -32,7 +32,7 @@ class MediaListWidget(_MediaListFramework):
 
 
 class MediaWidget(_MediaFramework):
-    def __init__(self, parent: QtWidgets.QWidget, player: str, bus: QDBusConnection, imgsize: int = None, butsize: int = None,
+    def __init__(self, parent: QWidget, player: str, bus: QDBusConnection, imgsize: int = None, butsize: int = None,
 ):
         """
         An individual now playing pane. Normally created and handled by a MediaListWidget, but could be manually created for a static now playing
