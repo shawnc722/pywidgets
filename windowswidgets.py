@@ -209,10 +209,14 @@ class NotificationWidget(pywidgets.NotificationWidgetFramework):
 
     def subscribe(self):
         print("subscribing...")
-        self.token = self.manager.add_notification_changed(
-            lambda lis, args: call_threadsafe(self.handle_notif, lis, args)
-        )
-        print("subscribed successfully")
+        try:
+            self.token = self.manager.add_notification_changed(
+                lambda lis, args: call_threadsafe(self.handle_notif, lis, args)
+            )
+        except OSError:
+            print("Subscription failed because of 'Element not found' Windows bug, NotificationWidget can't listen for notifs.")
+        else:
+            print("subscribed successfully")
 
     def handle_access(self, task):
         access = task.result()
@@ -225,7 +229,7 @@ class NotificationWidget(pywidgets.NotificationWidgetFramework):
 
     def handle_removed(self):
         print("closing out properly")
-        self.manager.remove_notification_changed(self.token)
+        if self.token is not None: self.manager.remove_notification_changed(self.token)
 
     def closeEvent(self, a0):
         self.handle_removed()
