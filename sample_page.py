@@ -3,11 +3,12 @@ import subprocess
 
 from pywidgets.JITstrings import JITstring, PyCmd, BashCmd
 from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmds, cur_OS, numbers_only_fn, \
-    bytes2human, disk_cmds, net_cmds
+    bytes2human, disk_cmds, net_cmds, temp_cmds
 import pywidgets
 
+background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background
 app = pywidgets.get_application()
-window = pywidgets.Window()#background_color=(0,0,0,128))
+window = pywidgets.Window(background_color=background_color)
 
 window.add_widget(pywidgets.HrWidget(window))
 window.add_widget(pywidgets.TextWidget(window, f"{system_strings['system name']} - {system_strings['distro']}<br/>" +
@@ -62,24 +63,21 @@ try:
     window.add_widget(pywidgets.ProgressArcsWidget(window, gpustr, percs, title="<b>GPU Usage</b>", update_interval=500))
 except subprocess.CalledProcessError: pass  # if nvidia-smi fails, no nvidia gpu
 
-if cur_OS == 'Linux':
-    from pywidgets.sample_data import temp_cmds
+try:  # in case the system this is running on has exactly the same device names and labels as mine
+    tempstr = JITstring(pywidgets.html_table(
+        [["CPU temp:", "{}C"], ["NVME temp:", "{}C"], ["Wifi temp:", "{}C"]], "<b>Temperatures</b>"),
+        [temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]])
 
-    try:  # in case the system this is running on has exactly the same device names and labels as mine
-        tempstr = JITstring(pywidgets.html_table(
-            [["CPU temp:", "{}C"], ["NVME temp:", "{}C"], ["Wifi temp:", "{}C"]], "<b>Temperatures</b>"),
-            [temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]])
+    def f():
+        return temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]
 
-        def f():
-            return temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]
+    window.add_widgets([pywidgets.HrWidget(window),
+                        pywidgets.GraphWidget(window, "<b>Temperatures</b>", f, lines=3, yrange=(20, 100), update_interval=1000,
+                                              ylabel_str_fn=lambda s: str(round(s)) + u'\N{DEGREE SIGN}C')])
 
-        window.add_widgets([pywidgets.HrWidget(window),
-                            pywidgets.GraphWidget(window, "<b>Temperatures</b>", f, lines=3, yrange=(20, 100), update_interval=1000,
-                                                  ylabel_str_fn=lambda s: str(round(s)) + u'\N{DEGREE SIGN}C')])
-
-        window.add_widgets([pywidgets.HrWidget(window), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
-    except IndexError:
-        pass  # if any of the devices or labels are wrong, just move on
+    window.add_widgets([pywidgets.HrWidget(window), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
+except KeyError:
+    print("Invalid devices in temp_cmds - temperature widgets won't be added. Possible devices:", list(temp_cmds.keys()))
 
 #window.add_widget(pywidgets.NotificationWidget(window))
 

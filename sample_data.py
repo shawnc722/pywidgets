@@ -143,19 +143,14 @@ disk_cmds = {
     "disks mountpoint": _partitions,
     "disks used":
         PyCmd(lambda: [bytes2human(disk_usage(p).used) for p in _partitions]),
-        #[PyCmd(disk_usage, p, get_attr="used", postformat_fn=bytes2human) for p in _partitions],
     "disks used (bytes)":
         PyCmd(lambda: [disk_usage(p).used for p in _partitions]),
-        #[PyCmd(disk_usage, p, get_attr="used") for p in _partitions],
     "disks total":
         PyCmd(lambda: [bytes2human(disk_usage(p).total) for p in _partitions]),
-        #[PyCmd(disk_usage, p, get_attr="total", postformat_fn=bytes2human) for p in _partitions],
     "disks total (bytes)":
         PyCmd(lambda: [disk_usage(p).total for p in _partitions]),
-        #[PyCmd(disk_usage, p, get_attr="total") for p in _partitions],
     "disks percent":
         PyCmd(lambda: [disk_usage(p).percent for p in _partitions])
-        #[PyCmd(disk_usage, p, get_attr="percent") for p in _partitions]
 }
 
 net_cmds = {
@@ -170,6 +165,7 @@ net_cmds = {
     "total net max speed": PyCmd(net_if_stats, postformat_fn=lambda x: sum(v.speed * BYTES_PER_MEGABIT
                                                                            for k, v in x.items()))
 }
+
 temp_cmds = {}  # placeholder
 if cur_OS == "Linux":
     from psutil import sensors_temperatures
@@ -181,7 +177,7 @@ if cur_OS == "Linux":
                  for label in ["current", "high", "critical"]}
 
 if cur_OS == "Windows":
-    temp_cmds = {"test output":  # not supported on all systems, some it may also not update or require admin
+    temp_cmds = {"CPU":  # not supported on all systems, some it may also not update or require admin
                      BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature")}
 system_strings = populate_runtime_strs(system_strings)
 
