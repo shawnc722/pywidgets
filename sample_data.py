@@ -137,19 +137,25 @@ nvidia_cmds = {
         "performance state": _nvidiainfo('pstate')
     }
 }
-_partitions = [p.mountpoint for p in disk_partitions()]
+
+_partitions = PyCmd(disk_partitions, postformat_fn=lambda x: [p.mountpoint for p in x])
 disk_cmds = {
     "disks mountpoint": _partitions,
     "disks used":
-        [PyCmd(disk_usage, p, get_attr="used", postformat_fn=bytes2human) for p in _partitions],
+        PyCmd(lambda: [bytes2human(disk_usage(p).used) for p in _partitions]),
+        #[PyCmd(disk_usage, p, get_attr="used", postformat_fn=bytes2human) for p in _partitions],
     "disks used (bytes)":
-        [PyCmd(disk_usage, p, get_attr="used") for p in _partitions],
+        PyCmd(lambda: [disk_usage(p).used for p in _partitions]),
+        #[PyCmd(disk_usage, p, get_attr="used") for p in _partitions],
     "disks total":
-        [PyCmd(disk_usage, p, get_attr="total", postformat_fn=bytes2human) for p in _partitions],
+        PyCmd(lambda: [bytes2human(disk_usage(p).total) for p in _partitions]),
+        #[PyCmd(disk_usage, p, get_attr="total", postformat_fn=bytes2human) for p in _partitions],
     "disks total (bytes)":
-        [PyCmd(disk_usage, p, get_attr="total") for p in _partitions],
+        PyCmd(lambda: [disk_usage(p).total for p in _partitions]),
+        #[PyCmd(disk_usage, p, get_attr="total") for p in _partitions],
     "disks percent":
-        [PyCmd(disk_usage, p, get_attr="percent") for p in _partitions]
+        PyCmd(lambda: [disk_usage(p).percent for p in _partitions])
+        #[PyCmd(disk_usage, p, get_attr="percent") for p in _partitions]
 }
 
 net_cmds = {

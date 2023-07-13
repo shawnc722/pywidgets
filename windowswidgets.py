@@ -228,7 +228,6 @@ class NotificationWidget(pywidgets.NotificationWidgetFramework):
             raise PermissionError("Notification access must be granted for notification widgets on Windows.")
 
     def handle_removed(self):
-        print("closing out properly")
         if self.token is not None: self.manager.remove_notification_changed(self.token)
 
     def closeEvent(self, a0):

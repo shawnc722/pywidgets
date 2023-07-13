@@ -17,12 +17,12 @@ window.add_widget(pywidgets.HrWidget(window))
 if hasattr(pywidgets, "MediaListWidget"):  # currently only Linux and Windows versions written
     window.add_widgets([pywidgets.MediaListWidget(window), pywidgets.HrWidget(window)])
 
-blkstr = JITstring(pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disks mountpoint']]),
-                   [i for l in zip(disk_cmds['disks used'], disk_cmds['disks total']) for i in l])
+blkstr = PyCmd(lambda: pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disks mountpoint']]).format(
+    *[i for l in zip(disk_cmds['disks used'], disk_cmds['disks total']) for i in l]))
 
 window.add_widgets(
-    [pywidgets.ProgressArcsWidget(window, blkstr, disk_cmds['disks percent'][::-1], True, "<b>Disk Usage</b>",
-                                  update_interval=2000),
+    [pywidgets.ProgressArcsWidget(window, blkstr, PyCmd(lambda: disk_cmds['disks percent'][::-1]),
+                                  True, "<b>Disk Usage</b>", update_interval=2000),
      pywidgets.HrWidget(window)])
 
 add_cores_avg = True

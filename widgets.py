@@ -2,8 +2,8 @@ from typing import Union, Callable
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot
-from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, QScreen, QResizeEvent, QPalette, \
-    QMouseEvent, QAction
+from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, \
+    QScreen, QResizeEvent, QPalette, QAction
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
 import numpy as np
@@ -103,7 +103,6 @@ class Window(QtWidgets.QMainWindow):
     @pyqtSlot(QPoint)
     def right_click_performed(self, a0: QPoint):
         self.right_click_menu.popup(self.mapToGlobal(a0))
-
 
     def handle_removed(self):
         for widget in QtWidgets.QApplication.allWidgets():
@@ -212,7 +211,7 @@ class ArcsWidget(QWidget):
             self._percs_now = [float(i) for i in self.percs]
         else:
             self._percs_now = list(self.percs())
-        if self.percent: self._percs_now = [i/100 for i in self._percs_now]
+        if self.percent: self._percs_now = [float(i)/100 for i in self._percs_now]
         self.update()
 
     def center_at(self, x: int, y: int) -> None:
@@ -242,7 +241,7 @@ class ArcsWidget(QWidget):
 class ProgressArcsWidget(QWidget):
     pos_options = ("bottom left", "bottom right", "top right", "top left")
 
-    def __init__(self, parent: QWidget, text: Union[JITstring, str], percs: Union[list, Callable],
+    def __init__(self, parent: QWidget, text: Union[JITstring, str, PyCmd], percs: Union[list, Callable],
                  percent: bool = True, title: Union[JITstring, str] = None, height: float = .1, update_interval: int = 1000,
                  arccol: QColor = None, arcthic: float = 0.6, arcpos: str = "top left"):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.

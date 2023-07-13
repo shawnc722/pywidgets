@@ -122,5 +122,7 @@ class JITstring(object):
 
     def __repr__(self):
         if type(self.cmds) != list:
-            return self.static_text.format(*self.cmds())
+            return str(self.static_text).format(*self.cmds())
         return self.static_text.format(*self.cmds)
+
+    def __call__(self): return self.__repr__()
