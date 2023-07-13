@@ -576,7 +576,7 @@ class _MediaFramework(QWidget):
         self.playing = False
         self.has_progress = True
         if primary_color is None: primary_color = self.palette().window().color()
-        if secondary_color is None: secondary_color = self.palette().windowText().color()
+        if secondary_color is None: secondary_color = self.palette().light().color()
 
         self.infolabel = QtWidgets.QLabel(self)
         self.infolabel.setWordWrap(True)
