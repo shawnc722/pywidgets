@@ -39,7 +39,8 @@ class PyCmd(object):
     def __iter__(self):
         for i in self.run(): yield i
 
-    def __call__(self, *args, **kwargs): return self.run(*args[1:], **kwargs)  # get rid of 'self' argument
+    def __call__(self, *args, **kwargs):
+        return self.run(*args, **kwargs)
 
     def run(self, *runtime_args, **runtime_kwargs):
         if self.postformat:

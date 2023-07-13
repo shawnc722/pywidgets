@@ -3,7 +3,7 @@ from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot
 from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, \
-    QScreen, QResizeEvent, QPalette, QAction
+    QScreen, QResizeEvent, QPalette, QAction, QPixmap
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
 import numpy as np
@@ -503,14 +503,80 @@ class Visualizer(pg.PlotWidget):
         self.data_lines[1].setData(self.xs, -ys)
 
 
+class ImageWithTextWidget(QWidget):
+    def __init__(self, parent: QWidget, text: str | JITstring = None, img: bytes | Callable = None,
+                 text_and_img: Callable = None, img_size: tuple[int, int] | None = (-1, -1), img_side: str = 'left',
+                 update_interval: int | None = 1000*60*60):
+        """
+        A widget for displaying an image beside text.
+        :param parent: the parent widget of this widget.
+        :param text: the text to display.
+        :param img: the image to display as bytes, or a callable (function, PyCmd, etc) that returns an image in bytes.
+        :param text_and_img: one callable that returns both text and img parameters in a tuple of (text, img). Both text
+            and img parameters are ignored if this isn't None.
+        :param img_size: a fixed size for the image in pixels. Default is 10% of the screen height (square), set to None
+            for no fixed size.
+        :param img_side: which side of the widget the image is on.
+        :param update_interval: the time in ms between updates - defaults to 1 hour. Set to None to disable updates.
+        """
+        super().__init__(parent)
+        layout = QtWidgets.QHBoxLayout(self)
+        self.get_img = img
+        self.get_text = text
+        self.text_and_img = text_and_img
+        self.img_label = QtWidgets.QLabel(self)
+        self.text_label = QtWidgets.QLabel(self)
+        self.text_label.setWordWrap(True)
+        pol = QtWidgets.QSizePolicy.Policy
+        self.img_label.setSizePolicy(pol.Maximum, pol.Preferred)
+        self.text_label.setSizePolicy(pol.Minimum, pol.Preferred)
+        self.img_size = img_size
+        if img_size is not None: self.img_label.setScaledContents(True)
+        self.img_label.setContentsMargins(0, 0, 0, 0)
+        self.text_label.setContentsMargins(0, 0, 0, 0)
+        ws = (self.img_label, self.text_label)
+        if img_side != 'left': ws = ws[::-1]
+        for w in ws:
+            layout.addWidget(w)
+        layout.setSizeConstraint(layout.SizeConstraint.SetMinimumSize)
+        self.setLayout(layout)
+        self.resizeEvent(None)
+
+        if update_interval != -1:
+            self.timer = QTimer()
+            self.timer.setInterval(update_interval)
+            self.timer.timeout.connect(self.do_cmds)
+            self.timer.start()
+        self.do_cmds()
+
+    def do_cmds(self):
+        if self.text_and_img is None:
+            text = self.get_text if type(self.get_text) == str else self.get_text()
+            img = self.get_img if type(self.get_img) == bytes else self.get_img()
+        else:
+            text, img = self.text_and_img()
+        self.text_label.setText(text)
+        pixmap = QPixmap()
+        pixmap.loadFromData(img)
+        self.img_label.setPixmap(pixmap)
+
+    def resizeEvent(self, a0: QResizeEvent | None):
+        img_size = [round(self.screen().geometry().height()/10)]*2 if self.img_size == (-1, -1) else self.img_size
+        if not img_size is None:
+            self.img_label.setFixedSize(*img_size)
+        if a0 is not None: super().resizeEvent(a0)
+
+
+
+
 class _MediaListFramework(QWidget):
-    def __init__(self, parent: QWidget, imgsize: int = None, butsize: int = None, update_interval: int = 250):
+    def __init__(self, parent: QWidget, imgsize: int = None, butsize: int = None, update_interval: int | None = 250):
         """
         A skeleton of a MediaListWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the main window.
         :param imgsize: the size of the album art image in pixels.
         :param butsize: the size of the media control buttons in pixels.
-        :param update_interval: the time in ms between updates for progress bars.
+        :param update_interval: the time in ms between updates for progress bars. Set to None to disable updates.
         """
         super().__init__(parent)
         self.butsize = butsize
@@ -521,10 +587,11 @@ class _MediaListFramework(QWidget):
         self.setLayout(self.layout)
         self.mediawidgets: dict[str, _MediaFramework] = {}
 
-        self.timer = QTimer()
-        self.timer.setInterval(update_interval)
-        self.timer.timeout.connect(self.update_timelines)
-        self.timer.start()
+        if update_interval is not None:
+            self.timer = QTimer()
+            self.timer.setInterval(update_interval)
+            self.timer.timeout.connect(self.update_timelines)
+            self.timer.start()
 
     def remove_widget(self, name: str):
         """
