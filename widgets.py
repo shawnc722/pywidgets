@@ -102,7 +102,7 @@ class Window(QtWidgets.QMainWindow):
 
     @pyqtSlot(QPoint)
     def right_click_performed(self, a0: QPoint):
-        self.right_click_menu.popup(self.mapToGlobal(a0))
+        self.right_click_menu.exec(self.mapToGlobal(a0))
 
     def handle_removed(self):
         for widget in QtWidgets.QApplication.allWidgets():

@@ -64,11 +64,11 @@ def ip_api_req(field: str):
     return PyCmd(get, 'http://ip-api.com/json/', params=dict(fields=field), postformat_fn=lambda x: x.json()[field])
 
 
-def weather_api_req(params: dict, getkeys=('hourly', 'precipitation_probability')):
+def weather_api_req(params: dict, getkeys=('hourly', 'precipitation_probability'), addtz='auto'):
     newparams = params.copy()
     newparams['latitude'] = ip_cmds['lat']()
     newparams['longitude'] = ip_cmds['lon']()
-    newparams['timezone'] = 'auto'
+    if addtz is not None: newparams['timezone'] = addtz
 
     def f(r):
         last = r.json()
@@ -77,13 +77,13 @@ def weather_api_req(params: dict, getkeys=('hourly', 'precipitation_probability'
     return PyCmd(get, 'https://api.open-meteo.com/v1/forecast', params=newparams, postformat_fn=f)
 
 
-def get_weather_icon(code: int | str = 53, night=False):
+def get_weather_icon(code: int | str = 53, day=True):
     """Given a WMO weather interpretation code, returns the weather description and the icon in bytes.
     :code: WMO weather interpretation code.
-    :night: whether to use the night variant of the icon.
+    :night: whether to use the day variant of the icon.
     :returns: (short description of the weather, requests.Response containing the icon)"""
     path = pywidgets.__path__[0] + '/data/weathericons.json'
-    with open(path) as file: node = load(file)[str(code)][('day', 'night')[night]]
+    with open(path) as file: node = load(file)[str(code)][('night', 'day')[day]]
     return node['description'], get(node['image']).content
 
 
