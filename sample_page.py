@@ -3,7 +3,7 @@ import subprocess
 
 from pywidgets.JITstrings import JITstring, PyCmd, BashCmd
 from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmds, cur_OS, numbers_only_fn, \
-    bytes2human, disk_cmds, net_cmds, temp_cmds
+    bytes2human, disk_cmds, net_cmds, temp_cmds, web_cmds
 import pywidgets
 
 background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background
@@ -80,6 +80,18 @@ except KeyError:
     print("Invalid devices in temp_cmds - temperature widgets won't be added. Possible devices:", list(temp_cmds.keys()))
 
 #window.add_widget(pywidgets.NotificationWidget(window))
+
+
+def fmt_weather():
+    weather = web_cmds['weather cmds']['current weather']()
+    desc, img = web_cmds['weather cmds']['get icon'](weather['weathercode'], weather['is_day'] == 1)
+    text = f"<b>{desc}</b><br/>Currently in {web_cmds['ip cmds']['city']} it's " + \
+           f"{weather['temperature']}\N{DEGREE SIGN}C with a wind speed of {weather['windspeed']} km/h.<br/>"
+    return text, img
+
+
+window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather, img_size=None,
+                                                update_interval=1000*60*20))  # update every 20min
 
 window.finish_init()
 pywidgets.run_application(app)

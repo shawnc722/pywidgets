@@ -226,8 +226,18 @@ if cur_OS == "Linux":
                  for label in ["current", "high", "critical"]}
 
 if cur_OS == "Windows":
-    temp_cmds = {"CPU":  # not supported on all systems, some it may also not update or require admin
-                     BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature")}
+    temp_cmds = {  # not supported on all systems, some it may also not update or require admin
+        "CPU": BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature",
+                       postformat_fn=lambda x: numbers_only(x) / 10 - 273.15),
+        "active throttle temp":
+            BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get ActiveTripPoint",
+                    postformat_fn=lambda x: numbers_only(x) / 10 - 273.15),
+        "passive throttle temp":
+            BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get PassiveTripPoint",
+                    postformat_fn=lambda x: numbers_only(x) / 10 - 273.15),
+        "instance name":
+            BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get InstanceName")
+    }
 system_strings = populate_runtime_strs(system_strings)
 
 all_cmds = {
