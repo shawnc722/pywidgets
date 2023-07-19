@@ -1,4 +1,3 @@
-#!/usr/bin/python3.8
 from subprocess import check_output
 from typing import Callable, Union
 

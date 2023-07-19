@@ -1,7 +1,7 @@
 #!/usr/bin/python3.8
 import sys
-import pywidgets
 from pywidgets.widgets import *
+import pywidgets.external_sources
 
 
 if sys.platform == "linux":

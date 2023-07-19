@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.11
 from psutil import cpu_percent, virtual_memory, cpu_freq, disk_partitions, \
     disk_usage, net_io_counters, net_if_stats, cpu_count
 from psutil._common import bytes2human
@@ -6,7 +6,6 @@ from platform import uname, system, version
 from pywidgets.JITstrings import PyCmd, BashCmd, PyCmdWithMem
 import pywidgets
 from requests import get
-from json import load
 
 
 cur_OS = system()
@@ -82,8 +81,7 @@ def get_weather_icon(code: int | str = 53, day=True):
     :code: WMO weather interpretation code.
     :night: whether to use the day variant of the icon.
     :returns: (short description of the weather, requests.Response containing the icon)"""
-    path = pywidgets.__path__[0] + '/data/weathericons.json'
-    with open(path) as file: node = load(file)[str(code)][('night', 'day')[day]]
+    node = pywidgets.external_sources.weather_icons[str(code)][('night', 'day')[day]]
     return node['description'], get(node['image']).content
 
 
@@ -227,6 +225,7 @@ if cur_OS == "Linux":
 
 if cur_OS == "Windows":
     temp_cmds = {  # not supported on all systems, some it may also not update or require admin
+        # TODO: these are returned in a \n deliminated list if there's multiple
         "CPU": BashCmd(r"wmic /namespace:\\root\wmi PATH MSAcpi_ThermalZoneTemperature get CurrentTemperature",
                        postformat_fn=lambda x: numbers_only(x) / 10 - 273.15),
         "active throttle temp":
