@@ -14,6 +14,8 @@ try:
 
     loop: qtinter.QiProactorEventLoop | None = None
 except ImportError: asyncio, qtinter, loop = None, None, None
+_use_async = False
+_app: QtWidgets.QApplication | None = None
 
 
 class Window(QtWidgets.QMainWindow):
@@ -25,7 +27,8 @@ class Window(QtWidgets.QMainWindow):
 
     def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
                  background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
-                 get_geometry: Callable[[QRect], list[int, int, int, int]] = None, flags: Qt.WindowType = None):
+                 get_geometry: Callable[[QRect], list[int, int, int, int]] = None, use_async: bool = False,
+                 window_flags: Qt.WindowType = None, application_flags: list = []):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
@@ -42,11 +45,26 @@ class Window(QtWidgets.QMainWindow):
             on top, or "default" to behave like a normal window.
         :param get_geometry: the method that decides placement and size of the window. Must take a QRect of available
             geometry and return a list of [x, y, width, height] relative to the argument QRect. Leave None for default.
-            Each parameter in the list must be either an int (to fix the
-        :param flags: Window type flags, to be passed along to the QMainWindow class.
+        :param use_async: whether to enable async functionality. Required for some widgets (ie WindowsMediaWidget).
+        :param window_flags: Window type flags, to be passed along to the QMainWindow class.
+        :param application_flags: flags to pass to the Qt QApplication.
         """
-        if flags is not None: super().__init__(flags=flags)
+        global _app
+        if _app is None: _app = QtWidgets.QApplication(application_flags)
+        if window_flags is not None: super().__init__(flags=window_flags)
         else: super().__init__()
+        if use_async:  # set up the loop to be filled out as Qt's first task
+            global _use_async
+            _use_async = True
+            def set_loop():
+                global loop
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    pass  # if disable_async is True in run_application, there's no running loop; ignore
+
+            run_on_app_start(set_loop)
+
         self.main_widget = None
         self.layout = None
         self.setWindowTitle("PyWidgets")
@@ -69,7 +87,7 @@ class Window(QtWidgets.QMainWindow):
         if stylesheet == 'default':  stylesheet = self.default_stylesheet
         self.setStyleSheet(stylesheet)
         if palette is None: palette = self.default_palette
-        QtWidgets.QApplication.instance().setPalette(palette)
+        _app.setPalette(palette)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
         self.handle_resize()
 
@@ -88,6 +106,9 @@ class Window(QtWidgets.QMainWindow):
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.exit_clicked)
         self.right_click_menu.addAction(exit_action)
+        refresh_action = QAction("Refresh", self)
+        refresh_action.triggered.connect(self.handle_resize)
+        self.right_click_menu.addAction(refresh_action)
         self.widgets = []
 
     def resizeEvent(self, a0: QResizeEvent):
@@ -98,7 +119,7 @@ class Window(QtWidgets.QMainWindow):
     def exit_clicked(self, *args):
         self.handle_removed()
         self.close()
-        QtWidgets.QApplication.instance().quit()
+        _app.quit()
 
     @pyqtSlot(QPoint)
     def right_click_performed(self, a0: QPoint):
@@ -129,13 +150,14 @@ class Window(QtWidgets.QMainWindow):
         """Resize and reconfigure the Window, optionally on a specific screen. Uses the geometry from the get_geometry
         argument in Window's init.
         :param screen: The QScreen to use for display, or None for the current one."""
+        if type(screen) == bool: screen = None  # if called from the right click menu, sends a bool
         if screen is not None: self.setScreen(screen)
         dims = self.screen().availableGeometry()
         font = self.font()
         newsize = round(self.font_size_vh / 100 * dims.height())
         if newsize != font.pixelSize():
             font.setPixelSize(newsize)
-            QtWidgets.QApplication.instance().setFont(font)  # set font on the whole app, so it propagates downward.
+            _app.setFont(font)  # set font on the whole app, so it propagates downward.
         self.setGeometry(*self.get_geometry(dims))
 
     def finish_init(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True, spacing: int = None) -> None:
@@ -861,30 +883,20 @@ def html_table(array: list, title='', style: str = "border-collapse: collapse;",
     return table
 
 
-def get_application(*args, **kwargs) -> QtWidgets.QApplication:
-    """
-    A wrapper function for QtWidgets.QApplication. Any arguments passed to this function will be passed on.
-    :return: the new QApplication instance.
-    """
-    return QtWidgets.QApplication(*args, **kwargs) if args or kwargs else QtWidgets.QApplication([])
-
-
 def get_current_page() -> Window:
     """Returns the currently running Page, to avoid messy imports in other scripts."""
-    print(QtWidgets.QApplication.instance().children())
+    print(_app.children())
 
 
-def run_application(app: QtWidgets.QApplication, disable_async=False):
-    if qtinter is None or disable_async:
-        app.exec()
+def start():
+    global _app
+    if _app is None:
+        raise AssertionError("QApplication not found, have you created a Window yet?")
+    if not _use_async:
+        _app.exec()
     else:
-        def set_loop():
-            global loop
-            loop = asyncio.get_running_loop()
-        run_on_app_start(set_loop)
-
         with qtinter.using_asyncio_from_qt():
-            app.exec()
+            _app.exec()
 
 
 def schedule(coro, callback=None):
@@ -907,12 +919,3 @@ def run_on_app_start(f: Callable, *args, **kwargs):
     """Takes the given function/method/PyCmd and runs it immediately once the QApplication starts.
     Just a wrapper for a single-shot QTimer to make code more readable."""
     QTimer.singleShot(0, PyCmd(f, *args, **kwargs))
-
-
-if qtinter is not None:  # sets the loop variable as the first task to ensure it's ready for widget setup
-    def set_loop():
-        global loop
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError: pass  # if disable_async is True in run_application, there's no running loop; ignore
-    run_on_app_start(set_loop)
