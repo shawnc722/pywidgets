@@ -7,12 +7,11 @@ from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmd
 import pywidgets
 
 background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background
-app = pywidgets.get_application()
-window = pywidgets.Window(background_color=background_color)
+window = pywidgets.Window(background_color=background_color, use_async=True)
 
 window.add_widget(pywidgets.HrWidget(window))
 window.add_widget(pywidgets.TextWidget(window, f"{system_strings['system name']} - {system_strings['distro']}<br/>" +
-                                       f"Running {cur_OS} {system_strings['release']}<br/>" + system_strings['CPU name']))
+                                       f"Running {cur_OS} {system_strings['version']}<br/>" + system_strings['CPU name']))
 window.add_widget(pywidgets.HrWidget(window))
 
 if hasattr(pywidgets, "MediaListWidget"):  # currently only Linux and Windows versions written
@@ -94,4 +93,4 @@ window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather
                                                 update_interval=1000*60*20))  # update every 20min
 
 window.finish_init()
-pywidgets.run_application(app)
+pywidgets.start()

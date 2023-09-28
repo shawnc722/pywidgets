@@ -24,11 +24,12 @@ class Window(QtWidgets.QMainWindow):
     default_palette.setColor(QPalette.ColorRole.Window, QColor('grey'))
     default_palette.setColor(QPalette.ColorRole.WindowText, QColor('grey'))
     default_palette.setColor(QPalette.ColorRole.Light, QColor('white'))
+    default_palette.setColor(QPalette.ColorRole.Shadow, QColor('black'))
 
     def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
                  background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
                  get_geometry: Callable[[QRect], list[int, int, int, int]] = None, use_async: bool = False,
-                 window_flags: Qt.WindowType = None, application_flags: list = []):
+                 shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list = []):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
@@ -46,30 +47,33 @@ class Window(QtWidgets.QMainWindow):
         :param get_geometry: the method that decides placement and size of the window. Must take a QRect of available
             geometry and return a list of [x, y, width, height] relative to the argument QRect. Leave None for default.
         :param use_async: whether to enable async functionality. Required for some widgets (ie WindowsMediaWidget).
+        :param shadow_radius: the radius (in pixels) of the shadow (outline) behind widgets. Set 0 to disable shadow.
         :param window_flags: Window type flags, to be passed along to the QMainWindow class.
         :param application_flags: flags to pass to the Qt QApplication.
         """
+
+        # get (or start) application and initialize window
         global _app
-        if _app is None: _app = QtWidgets.QApplication(application_flags)
-        if window_flags is not None: super().__init__(flags=window_flags)
-        else: super().__init__()
-        if use_async:  # set up the loop to be filled out as Qt's first task
+        if _app is None: _app = QtWidgets.QApplication(application_flags)  # start application if it's not running
+        super().__init__() if window_flags is None else super().__init__(flags=window_flags)
+
+        if use_async:  # set up the loop to be assigned as Qt's first task, so other widgets can reference it
             global _use_async
             _use_async = True
+
             def set_loop():
                 global loop
-                try:
-                    loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    pass  # if disable_async is True in run_application, there's no running loop; ignore
-
+                loop = asyncio.get_running_loop()
             run_on_app_start(set_loop)
 
+        # fill out properties
         self.main_widget = None
         self.layout = None
-        self.setWindowTitle("PyWidgets")
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.widgets = []
         self.font_size_vh = font_size_vh
+        self.main_widget = QWidget()
+        self.main_widget.setObjectName("main_widget")
+        self.setCentralWidget(self.main_widget)
         if get_geometry is None:
             def get_geometry(dims: QRect) -> list[int, int, int, int]:
                 width = round(dims.width() * 17 / 128)       # a bit wider than 1/8th of the screen. 4K->510px
@@ -78,6 +82,9 @@ class Window(QtWidgets.QMainWindow):
 
         self.get_geometry = get_geometry
 
+        # setup style of window
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setWindowTitle("PyWidgets")
         types = Qt.WindowType
         flags = types.FramelessWindowHint
         if maintain_position.lower() == 'bottom': flags = flags | types.Tool | types.WindowStaysOnBottomHint
@@ -89,27 +96,37 @@ class Window(QtWidgets.QMainWindow):
         if palette is None: palette = self.default_palette
         _app.setPalette(palette)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
-        self.handle_resize()
 
-        self.main_widget = QWidget()
-        self.main_widget.setObjectName("main_widget")
         if background_color is not None: self.main_widget.setStyleSheet('#main_widget {background-color: ' +
                                                                         'rgba({},{},{},{})'.format(*background_color) +
                                                                         ';}')
-        self.setCentralWidget(self.main_widget)
+
+        if shadow_radius != 0:
+            shadow = QtWidgets.QGraphicsDropShadowEffect(self)
+            shadow.setColor(self.palette().shadow().color())
+            shadow.setOffset(0)
+            shadow.setBlurRadius(shadow_radius)
+            #self.main_widget.setGraphicsEffect(shadow)
+            self.setGraphicsEffect(shadow)  # inheritance works better if it's on main_widget, but that lags(?)
+
+        # context menu setup
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.right_click_menu = QtWidgets.QMenu(self)
         self.right_click_menu.setStyleSheet('''
-            QMenu::item { padding: 2% 10%; }
+            QMenu::item { padding: 2% 15%; 
+                          border-bottom: 1px solid;}
+            QMenu::item:selected {border: 2px solid;}
         ''')
         self.customContextMenuRequested.connect(self.right_click_performed)
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.exit_clicked)
-        self.right_click_menu.addAction(exit_action)
         refresh_action = QAction("Refresh", self)
         refresh_action.triggered.connect(self.handle_resize)
         self.right_click_menu.addAction(refresh_action)
-        self.widgets = []
+        self.move_screen_menu = self.right_click_menu.addMenu("Move to Screen")
+        exit_action = QAction("Exit", self)
+        exit_action.triggered.connect(self.exit_clicked)
+        self.right_click_menu.addAction(exit_action)
+
+        self.handle_resize()  # sets window size and position
 
     def resizeEvent(self, a0: QResizeEvent):
         super().resizeEvent(a0)
@@ -123,7 +140,12 @@ class Window(QtWidgets.QMainWindow):
 
     @pyqtSlot(QPoint)
     def right_click_performed(self, a0: QPoint):
-        self.right_click_menu.exec(self.mapToGlobal(a0))
+        self.move_screen_menu.clear()
+        for screen in _app.screens():
+            act = QAction(screen.name(), self)
+            act.triggered.connect(lambda: self.handle_resize(screen))
+            self.move_screen_menu.addAction(act)
+        self.right_click_menu.popup(self.mapToGlobal(a0))
 
     def handle_removed(self):
         for widget in QtWidgets.QApplication.allWidgets():
@@ -208,6 +230,7 @@ class ArcsWidget(QWidget):
         self.arcthic = None
         self.arcspace_perc = arcspace
         self.arcspace = None
+
         if update_interval:
             self.update_interval = update_interval
             self.timer = QTimer()
@@ -422,7 +445,7 @@ class GraphWidget(pg.PlotWidget):
         :param linewidth: the width of the line.
         :param lines: how many lines to be drawn - if greater than 1, getdata must return a list of the multiple line data.
         """
-        super().__init__(parent, background=None)
+        super().__init__(parent=None, background=None)
         self.setStyleSheet("background-color:transparent;")
         if height == -1: height = round(parent.height()/10)
         if height is not None: self.setFixedHeight(height)
@@ -547,8 +570,7 @@ class ImageWithTextWidget(QWidget):
         self.get_text = text
         self.text_and_img = text_and_img
         self.img_label = QtWidgets.QLabel(self)
-        self.text_label = QtWidgets.QLabel(self)
-        self.text_label.setWordWrap(True)
+        self.text_label = TextWidget(self, alignment='VCenter')
         pol = QtWidgets.QSizePolicy.Policy
         self.img_label.setSizePolicy(pol.Maximum, pol.Preferred)
         self.text_label.setSizePolicy(pol.Minimum, pol.Preferred)
@@ -667,11 +689,9 @@ class _MediaFramework(QWidget):
         if primary_color is None: primary_color = self.palette().window().color()
         if secondary_color is None: secondary_color = self.palette().light().color()
 
-        self.infolabel = QtWidgets.QLabel(self)
-        self.infolabel.setWordWrap(True)
+        self.infolabel = TextWidget(self, alignment="Left")
         self.infolabel.setScaledContents(True)
-        self.playernamelabel = QtWidgets.QLabel(self)
-        self.playernamelabel.setWordWrap(True)
+        self.playernamelabel = TextWidget(self, alignment="Left")
         self.playernamelabel.setScaledContents(True)
         self.layout = QtWidgets.QHBoxLayout()
         self.layout.setContentsMargins(0, 0, 0, 0)
