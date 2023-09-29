@@ -5,7 +5,6 @@ from psutil._common import bytes2human
 from platform import uname, system, version
 from pywidgets.JITstrings import PyCmd, BashCmd, PyCmdWithMem
 import pywidgets
-from requests import get
 
 
 cur_OS = system()
@@ -59,32 +58,6 @@ def wrap_for_exceptions(cmd: callable, exceptions: list, handler: callable) -> c
     return wrapped
 
 
-def ip_api_req(field: str):
-    return PyCmd(get, 'http://ip-api.com/json/', params=dict(fields=field), postformat_fn=lambda x: x.json()[field])
-
-
-def weather_api_req(params: dict, getkeys=('hourly', 'precipitation_probability'), addtz='auto'):
-    newparams = params.copy()
-    newparams['latitude'] = ip_cmds['lat']()
-    newparams['longitude'] = ip_cmds['lon']()
-    if addtz is not None: newparams['timezone'] = addtz
-
-    def f(r):
-        last = r.json()
-        for key in getkeys: last = last[key]
-        return last
-    return PyCmd(get, 'https://api.open-meteo.com/v1/forecast', params=newparams, postformat_fn=f)
-
-
-def get_weather_icon(code: int | str = 53, day=True):
-    """Given a WMO weather interpretation code, returns the weather description and the icon in bytes.
-    :code: WMO weather interpretation code.
-    :night: whether to use the day variant of the icon.
-    :returns: (short description of the weather, requests.Response containing the icon)"""
-    node = pywidgets.external_sources.weather_icons[str(code)][('night', 'day')[day]]
-    return node['description'], get(node['image']).content
-
-
 system_strings = {
     "system name": uname().node,
     "CPU name": 'populated at runtime',
@@ -127,6 +100,19 @@ mem_cmds = {
     "used bytes": PyCmd(virtual_memory, get_attr="used"),
     "total bytes": PyCmd(virtual_memory, get_attr="total"),
     "free bytes": PyCmd(virtual_memory, get_attr="free")
+}
+
+net_cmds = {
+    "current up": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_sent", postformat_fn=bytes2human),
+    "current up (bytes)": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_sent"),
+    "total up": PyCmd(net_io_counters, get_attr="bytes_sent", postformat_fn=bytes2human),
+    "total up (bytes)": PyCmd(net_io_counters, get_attr="bytes_sent"),
+    "current down": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv", postformat_fn=bytes2human),
+    "current down (bytes)": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv"),
+    "total down": PyCmd(net_io_counters, get_attr="bytes_recv", postformat_fn=bytes2human),
+    "total down (bytes)": PyCmd(net_io_counters, get_attr="bytes_recv"),
+    "total net max speed": PyCmd(net_if_stats, postformat_fn=lambda x: sum(v.speed * BYTES_PER_MEGABIT
+                                                                           for k, v in x.items()))
 }
 
 nvidia_cmds = {
@@ -181,37 +167,6 @@ disk_cmds = {
         PyCmd(lambda: [disk_usage(p).percent for p in _partitions])
 }
 
-net_cmds = {
-    "current up": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_sent", postformat_fn=bytes2human),
-    "current up (bytes)": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_sent"),
-    "total up": PyCmd(net_io_counters, get_attr="bytes_sent", postformat_fn=bytes2human),
-    "total up (bytes)": PyCmd(net_io_counters, get_attr="bytes_sent"),
-    "current down": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv", postformat_fn=bytes2human),
-    "current down (bytes)": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv"),
-    "total down": PyCmd(net_io_counters, get_attr="bytes_recv", postformat_fn=bytes2human),
-    "total down (bytes)": PyCmd(net_io_counters, get_attr="bytes_recv"),
-    "total net max speed": PyCmd(net_if_stats, postformat_fn=lambda x: sum(v.speed * BYTES_PER_MEGABIT
-                                                                           for k, v in x.items()))
-}
-
-ip_cmds = {field: ip_api_req(field) for field in
-           'continent,continentCode,country,countryCode,region,regionName,city,district,zip,lat,lon,query'.split(',')}
-
-weather_cmds = {
-    'hourly precipitation chance': # returns a list of the percentages from 12:00AM today
-        weather_api_req(dict(hourly='precipitation_probability', forecast_days=1)),
-    'get icon':  # takes a WMO weather interpretation code and returns the corresponding icon from openweathermap.org
-        PyCmd(get_weather_icon),
-    'daily weathercodes':
-        weather_api_req(dict(daily='weathercode'), getkeys=('daily', 'weathercode')),
-    'current weather':
-        weather_api_req(dict(current_weather=True, forecast_days=0), getkeys=('current_weather',))
-}
-
-web_cmds = {
-    "ip cmds": ip_cmds,
-    "weather cmds": weather_cmds
-}
 
 temp_cmds = {}  # placeholder
 if cur_OS == "Linux":
@@ -260,6 +215,7 @@ if __name__ == "__main__":
     perm = input("Run web commands too? These use HTTP requests, and will send information to unaffiliated servers.\n" +
                  "'y' or 'yes' to continue, any other response won't send the requests. Answer:  ").lower()
     if perm == 'y' or perm == 'yes':
+        from pywidgets.sample_web_data import web_cmds
         try:
             _test_cmds(web_cmds, title="web cmds:")
         except Exception as e:

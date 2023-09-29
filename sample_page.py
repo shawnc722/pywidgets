@@ -3,7 +3,8 @@ import subprocess
 
 from pywidgets.JITstrings import JITstring, PyCmd, BashCmd
 from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmds, cur_OS, numbers_only_fn, \
-    bytes2human, disk_cmds, net_cmds, temp_cmds, web_cmds
+    bytes2human, disk_cmds, temp_cmds, net_cmds
+from pywidgets.sample_web_data import web_cmds
 import pywidgets
 
 background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background
@@ -90,7 +91,7 @@ def fmt_weather():
 
 
 window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather, img_size=None,
-                                                update_interval=1000*60*20))  # update every 20min
+                                                update_interval=1000*60*10))  # update every 10min
 
 window.finish_init()
 pywidgets.start()
