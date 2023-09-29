@@ -4,7 +4,7 @@ from typing import Callable, Union
 
 class PyCmd(object):
     def __init__(self, cmd: Callable, *args, postformat_fn: Callable = None, get: Union[int, object] = None,
-                 get_attr: str = None, **kwargs):
+                 get_attr: str = None, _debug=False, **kwargs):
         """
         A container for a function that behaves like the function's results; think of this like the function's returned
         value, except that the value will update each time it's checked.
@@ -13,6 +13,7 @@ class PyCmd(object):
         :param postformat_fn: an optional function to format the results, e.g. round. Applied last, after get or get_attr.
         :param get: a key to access from the output of cmd (e.g. output[key]). Can't be used with get_attr.
         :param get_attr: an attribute to access from the output of cmd (e.g. output.attr). Can't be used with get.
+        :param _debug: if True, will print args and kwargs when running the PyCmd.
         :param kwargs: the keyword arguments to pass to the function on runtime. Adds to any kwargs given if calling the PcCmd.
         """
         self.cmd = cmd
@@ -22,6 +23,8 @@ class PyCmd(object):
         if get is not None and get_attr is not None: raise RuntimeError("'get' and 'get_attr' cannot both be used.")
         self.get = get
         self.get_attr = get_attr
+
+        self._debug = _debug
 
     def __repr__(self): return str(self.run())
 
@@ -42,18 +45,28 @@ class PyCmd(object):
         return self.run(*args, **kwargs)
 
     def run(self, *runtime_args, **runtime_kwargs):
+        args = self.args + runtime_args
+        kwargs = runtime_kwargs.copy()
+        kwargs.update(self.kwargs)
+        if self._debug:
+            print(args, kwargs)
+        def call():
+            if args and kwargs: return self.cmd(*args, **kwargs)
+            elif kwargs: return self.cmd(**kwargs)
+            elif args: return self.cmd(*args)
+            else: return self.cmd()
+
         if self.postformat:
             if self.get is not None:
-                return self.postformat(self.cmd(*self.args, *runtime_args, **self.kwargs, **runtime_kwargs)[self.get])
+                return self.postformat(call()[self.get])
             if self.get_attr is not None:
-                return self.postformat(getattr(self.cmd(*self.args, *runtime_args, **self.kwargs, **runtime_kwargs),
-                                               self.get_attr))
-            return self.postformat(self.cmd(*self.args, *runtime_args, **self.kwargs, **runtime_kwargs))
+                return self.postformat(getattr(call(), self.get_attr))
+            return self.postformat(call())
         if self.get is not None:
-            return self.cmd(*self.args, *runtime_args, **self.kwargs, **runtime_kwargs)[self.get]
+            return call()[self.get]
         if self.get_attr is not None:
-            return getattr(self.cmd(*self.args, *runtime_args, **self.kwargs, **runtime_kwargs), self.get_attr)
-        return self.cmd(*self.args, *runtime_args, **self.kwargs, **runtime_kwargs)
+            return getattr(call(), self.get_attr)
+        return call()
 
 
 class BashCmd(PyCmd):

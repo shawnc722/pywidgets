@@ -78,7 +78,7 @@ class Window(QtWidgets.QMainWindow):
             def get_geometry(dims: QRect) -> list[int, int, int, int]:
                 width = round(dims.width() * 17 / 128)       # a bit wider than 1/8th of the screen. 4K->510px
                 offset = 0                                   # the amount to move the window left, for better visibility
-                return [dims.width() - width - offset, 0, width, dims.height()]
+                return [dims.x() + dims.width() - width - offset, dims.y(), width, dims.height()]
 
         self.get_geometry = get_geometry
 
@@ -108,6 +108,8 @@ class Window(QtWidgets.QMainWindow):
             shadow.setBlurRadius(shadow_radius)
             #self.main_widget.setGraphicsEffect(shadow)
             self.setGraphicsEffect(shadow)  # inheritance works better if it's on main_widget, but that lags(?)
+
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Expanding)
 
         # context menu setup
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -143,7 +145,7 @@ class Window(QtWidgets.QMainWindow):
         self.move_screen_menu.clear()
         for screen in _app.screens():
             act = QAction(screen.name(), self)
-            act.triggered.connect(lambda: self.handle_resize(screen))
+            act.triggered.connect(PyCmd(self.handle_resize, screen))
             self.move_screen_menu.addAction(act)
         self.right_click_menu.popup(self.mapToGlobal(a0))
 
@@ -168,10 +170,11 @@ class Window(QtWidgets.QMainWindow):
             if not hasattr(widget, '__next__'): self.widgets.append((widget, ))  # if it's not iterable, wrap in tuple
             else: self.widgets.append(widget)  # if 'widget' is iterable, assuming it matches the [widget, *args] format
 
-    def handle_resize(self, screen: QScreen = None):
+    def handle_resize(self, screen: QScreen = None, _signal: bool = None):
         """Resize and reconfigure the Window, optionally on a specific screen. Uses the geometry from the get_geometry
         argument in Window's init.
-        :param screen: The QScreen to use for display, or None for the current one."""
+        :param screen: The QScreen to use for display, or None for the current one.
+        :param _signal: the signal of the menuitem that's passed along when clicked; ignored."""
         if type(screen) == bool: screen = None  # if called from the right click menu, sends a bool
         if screen is not None: self.setScreen(screen)
         dims = self.screen().availableGeometry()
@@ -341,26 +344,28 @@ class ProgressArcsWidget(QWidget):
     def resizeEvent(self, a0: QResizeEvent):
         super().resizeEvent(a0)
         height = round(self.parent().height() * self.height_perc)
-        self.setFixedSize(self.parent().width(), height)
+        newdims = a0.size()
+        newdims.setHeight(height)
+        self.setMinimumHeight(height)
         fonth = self.fontMetrics().height()
         if self.arcthic_perc == 0.:
             arcthic = (fonth - self.fontMetrics().underlinePos()) / 2
         else:
             arcthic = fonth * self.arcthic_perc
 
-        arcsize = self.height() - round(max((self.fontMetrics().lineSpacing() - arcthic) / 2, 0))
+        arcsize = newdims.height() - round(max((self.fontMetrics().lineSpacing() - arcthic) / 2, 0))
         offset = round(arcsize / 2)
         yoff = offset if "top" in self.arcpos else 0
         xoff = offset if "left" in self.arcpos else 0
-        self.label_wrapper.setGeometry(xoff, yoff, self.width() - offset, self.height() - offset)
+        self.label_wrapper.setGeometry(xoff, yoff, newdims.width() - offset, newdims.height() - offset)
 
         self.arcs.setFixedSize(arcsize, arcsize)
         if self.title:
             ls = self.fontMetrics().lineSpacing()
-            self.label_wrapper.setGeometry(xoff, max(yoff - ls, 0), self.width() - offset, self.height() - offset + ls)
+            self.label_wrapper.setGeometry(xoff, max(yoff - ls, 0), newdims.width() - offset, newdims.height() - offset + ls)
 
-        ypos = yoff if yoff != 0 else self.height() - offset
-        xpos = xoff if xoff != 0 else self.width() - offset
+        ypos = yoff if yoff != 0 else newdims.height() - offset
+        xpos = xoff if xoff != 0 else newdims.width() - offset
         self.arcs.arcthic = round(arcthic)
         self.arcs.center_at(xpos, ypos)
 
@@ -550,7 +555,7 @@ class Visualizer(pg.PlotWidget):
 
 class ImageWithTextWidget(QWidget):
     def __init__(self, parent: QWidget, text: str | JITstring = None, img: bytes | Callable = None,
-                 text_and_img: Callable = None, img_size: tuple[int, int] | None = (-1, -1), img_side: str = 'left',
+                 text_and_img: Callable = None, img_size: tuple[int, int] = None, img_side: str = 'left',
                  update_interval: int | None = 1000*60*60):
         """
         A widget for displaying an image beside text.
@@ -559,8 +564,7 @@ class ImageWithTextWidget(QWidget):
         :param img: the image to display as bytes, or a callable (function, PyCmd, etc) that returns an image in bytes.
         :param text_and_img: one callable that returns both text and img parameters in a tuple of (text, img). Both text
             and img parameters are ignored if this isn't None.
-        :param img_size: a fixed size for the image in pixels. Default is 10% of the screen height (square), set to None
-            for no fixed size.
+        :param img_size: a fixed size for the image in pixels. Default is dependant on how much space the image has.
         :param img_side: which side of the widget the image is on.
         :param update_interval: the time in ms between updates - defaults to 1 hour. Set to None to disable updates.
         """
@@ -571,20 +575,16 @@ class ImageWithTextWidget(QWidget):
         self.text_and_img = text_and_img
         self.img_label = QtWidgets.QLabel(self)
         self.text_label = TextWidget(self, alignment='VCenter')
-        pol = QtWidgets.QSizePolicy.Policy
-        self.img_label.setSizePolicy(pol.Maximum, pol.Preferred)
-        self.text_label.setSizePolicy(pol.Minimum, pol.Preferred)
-        self.img_size = img_size
-        if img_size is not None: self.img_label.setScaledContents(True)
+        if img_size is not None: self.img_label.setFixedSize(*img_size)
+        self.img_label.setScaledContents(True)
         self.img_label.setContentsMargins(0, 0, 0, 0)
         self.text_label.setContentsMargins(0, 0, 0, 0)
         ws = (self.img_label, self.text_label)
         if img_side != 'left': ws = ws[::-1]
         for w in ws:
             layout.addWidget(w)
-        layout.setSizeConstraint(layout.SizeConstraint.SetMinimumSize)
         self.setLayout(layout)
-        self.resizeEvent(None)
+        self.adjustSize()
 
         if update_interval != -1:
             self.timer = QTimer()
@@ -604,11 +604,11 @@ class ImageWithTextWidget(QWidget):
         pixmap.loadFromData(img)
         self.img_label.setPixmap(pixmap)
 
-    def resizeEvent(self, a0: QResizeEvent | None):
+    '''def resizeEvent(self, a0: QResizeEvent):
+        super().resizeEvent(a0)
         img_size = [round(self.screen().geometry().height()/10)]*2 if self.img_size == (-1, -1) else self.img_size
         if not img_size is None:
-            self.img_label.setFixedSize(*img_size)
-        if a0 is not None: super().resizeEvent(a0)
+            self.img_label.setFixedSize(*img_size)'''
 
 
 
@@ -901,11 +901,6 @@ def html_table(array: list, title='', style: str = "border-collapse: collapse;",
         table += f'<tr><td>{row[0]}</td><td style="{right_td_style}">{row[1]}</td></tr>'
     table += '</table>'
     return table
-
-
-def get_current_page() -> Window:
-    """Returns the currently running Page, to avoid messy imports in other scripts."""
-    print(_app.children())
 
 
 def start():
