@@ -7,8 +7,8 @@ from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmd
 from pywidgets.sample_web_data import web_cmds
 import pywidgets
 
-background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background
-window = pywidgets.Window(background_color=background_color, use_async=True)
+background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background. None for no bg
+window = pywidgets.Window(background_color=background_color, use_async=True, shadow_radius=5)
 
 window.add_widget(pywidgets.HrWidget(window))
 window.add_widget(pywidgets.TextWidget(window, f"{system_strings['system name']} - {system_strings['distro']}<br/>" +
@@ -92,6 +92,7 @@ def fmt_weather():
 
 window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather, img_size=None,
                                                 update_interval=1000*60*10))  # update every 10min
+
 
 window.finish_init()
 pywidgets.start()
