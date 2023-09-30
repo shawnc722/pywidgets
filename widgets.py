@@ -28,7 +28,7 @@ class Window(QtWidgets.QMainWindow):
 
     def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
                  background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
-                 get_geometry: Callable[[QRect], list[int, int, int, int]] = None, use_async: bool = False,
+                 set_size: Callable[[QRect], list[int, int, int, int]] = None, use_async: bool = False,
                  shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list = []):
         """
         The main window containing all your pywidgets. After instantiating one of these,
@@ -44,10 +44,11 @@ class Window(QtWidgets.QMainWindow):
             Use this argument instead of setting it in stylesheet to avoid each widget's background color stacking.
         :param maintain_position: where the window should stay - "bottom" to appear part of the desktop, "top" to stay
             on top, or "default" to behave like a normal window.
-        :param get_geometry: the method that decides placement and size of the window. Must take a QRect of available
-            geometry and return a list of [x, y, width, height] relative to the argument QRect. Leave None for default.
+        :param set_size: the method that decides placement and size of the window. Must take the window instance and
+            a QRect of available geometry and is responsible for setting the window position and size.
         :param use_async: whether to enable async functionality. Required for some widgets (ie WindowsMediaWidget).
         :param shadow_radius: the radius (in pixels) of the shadow (outline) behind widgets. Set 0 to disable shadow.
+            Shadows don't behave well with transparency, so don't use with non-opaque background_color.
         :param window_flags: Window type flags, to be passed along to the QMainWindow class.
         :param application_flags: flags to pass to the Qt QApplication.
         """
@@ -74,13 +75,17 @@ class Window(QtWidgets.QMainWindow):
         self.main_widget = QWidget()
         self.main_widget.setObjectName("main_widget")
         self.setCentralWidget(self.main_widget)
-        if get_geometry is None:
-            def get_geometry(dims: QRect) -> list[int, int, int, int]:
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Maximum)
+        if set_size is None:
+            def set_size(window: Window, dims: QRect) -> None:
                 width = round(dims.width() * 17 / 128)       # a bit wider than 1/8th of the screen. 4K->510px
                 offset = 0                                   # the amount to move the window left, for better visibility
-                return [dims.x() + dims.width() - width - offset, dims.y(), width, dims.height()]
+                window.setFixedWidth(width)
+                window.setMaximumHeight(dims.height())
+                window.move(dims.x() + dims.width() - width - offset, dims.y())
+                #return [dims.x() + dims.width() - width - offset, dims.y(), width, dims.height()]
 
-        self.get_geometry = get_geometry
+        self.set_size = set_size
 
         # setup style of window
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -97,7 +102,7 @@ class Window(QtWidgets.QMainWindow):
         _app.setPalette(palette)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
 
-        if background_color is not None: self.main_widget.setStyleSheet('#main_widget {background-color: ' +
+        if background_color is not None: self.main_widget.setStyleSheet('#main_widget {background-color: ' +  # '#main_widget {background-color; '
                                                                         'rgba({},{},{},{})'.format(*background_color) +
                                                                         ';}')
 
@@ -183,7 +188,7 @@ class Window(QtWidgets.QMainWindow):
         if newsize != font.pixelSize():
             font.setPixelSize(newsize)
             _app.setFont(font)  # set font on the whole app, so it propagates downward.
-        self.setGeometry(*self.get_geometry(dims))
+        self.set_size(self, dims)
 
     def finish_init(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True, spacing: int = None) -> None:
         """
@@ -297,7 +302,7 @@ class ProgressArcsWidget(QWidget):
         :param text: the text for the arcs to be drawn around.
         :param percs: either a list of commands or a single function/command that produces a list. Results must match the percent argument.
         :param percent: whether the results of percs are in percent (0-100) or decimal (0-1).
-        :param height: the height of the widget in decimal percentage of the parent widget height (1 = 100%).
+        :param height: the height of the widget in decimal percentage of the screen height (1 = 100%).
         :param update_interval: the time in ms between calls to the percs function(s)
         :param arccol: the color of the arcs as a Qt color. Leave as None to use the parent widget's default color.
         :param arcthic: the thickness of the arcs relative to the text height. Set to 0 to auto-match the default underline position.
@@ -343,7 +348,7 @@ class ProgressArcsWidget(QWidget):
 
     def resizeEvent(self, a0: QResizeEvent):
         super().resizeEvent(a0)
-        height = round(self.parent().height() * self.height_perc)
+        height = round(self.screen().availableGeometry().height() * self.height_perc)
         newdims = a0.size()
         newdims.setHeight(height)
         self.setMinimumHeight(height)
@@ -452,7 +457,7 @@ class GraphWidget(pg.PlotWidget):
         """
         super().__init__(parent=None, background=None)
         self.setStyleSheet("background-color:transparent;")
-        if height == -1: height = round(parent.height()/10)
+        if height == -1: height = round(parent.screen().availableGeometry().height()/10)
         if height is not None: self.setFixedHeight(height)
         self.graph_title = title
         default_color = parent.palette().window().color()  # use parent palette because the PlotWidget sets its own
