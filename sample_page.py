@@ -94,5 +94,5 @@ window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather
                                                 update_interval=1000*60*10))  # update every 10min
 
 
-window.finish_init()
+window.finalize()
 pywidgets.start()

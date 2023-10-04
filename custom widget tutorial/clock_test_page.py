@@ -1,9 +1,13 @@
 import pywidgets
 from clock_widget import ClockWidget
+from PyQt6 import QtGui
 
-app = pywidgets.get_application()
-default_color = "grey"  # this is already the default so there's no need to specify, but it's here in case you want to change it
-window = pywidgets.get_window(app, default_color=default_color)
+palette = pywidgets.Window.default_palette  # only required if you plan on changing the colors
+# palette.setColor(palette.ColorRole.Window, QtGui.QColor("sky blue"))  # set colors like this
+# palette.setColor(palette.ColorRole.WindowText, QtGui.QColor(0, 128, 0))  # and/or like this
+window = pywidgets.Window(palette=palette)
+
 window.add_widget(ClockWidget(window))
-window.finish_init()
-exit(app.exec())
+
+window.finalize()
+pywidgets.start()

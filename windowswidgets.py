@@ -184,10 +184,6 @@ class MediaWidget(_MediaFramework):
         self.session.remove_playback_info_changed(self.playback_token)
         self.session.remove_timeline_properties_changed(self.timeline_token)
 
-    def closeEvent(self, a0):
-        self.handle_removed()
-        super().closeEvent(a0)
-
 
 class NotificationWidget(pywidgets.NotificationWidgetFramework):
     inverse_access_status = enum_to_rdict(UserNotificationListenerAccessStatus)
@@ -229,10 +225,6 @@ class NotificationWidget(pywidgets.NotificationWidgetFramework):
 
     def handle_removed(self):
         if self.token is not None: self.manager.remove_notification_changed(self.token)
-
-    def closeEvent(self, a0):
-        self.handle_removed()
-        super().closeEvent(a0)
 
 
 async def winrt_to_async(winrt_fn, *args): return await winrt_fn(*args)

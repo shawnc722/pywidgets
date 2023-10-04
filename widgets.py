@@ -190,7 +190,7 @@ class Window(QtWidgets.QMainWindow):
             _app.setFont(font)  # set font on the whole app, so it propagates downward.
         self.set_size(self, dims)
 
-    def finish_init(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True, spacing: int = None) -> None:
+    def finalize(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True, spacing: int = None) -> None:
         """
         Adds the stored pywidgets to the Window and finishes off the setup. Uses a custom layout if provided.
         :param layout: a Qt layout to use for the widgets.
