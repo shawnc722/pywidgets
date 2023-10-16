@@ -83,7 +83,7 @@ With a data source chosen, the next step is to pick (or create) a widget to disp
 
 * [widgets](https://github.com/shawnc722/pywidgets/wiki/Widgets) - Sample images and documentation for individual widgets  
 * [data formatting](https://github.com/shawnc722/pywidgets/wiki/Data-Formatting) - info on PyCmds, JITstrings, and BashCmds  
-* [tutorial]('custom widget tutorial'/tutorial.md) - a walkthrough for creating a custom analogue clock widget
+* [tutorial](https://github.com/shawnc722/pywidgets/blob/main/custom%20widget%20tutorial/tutorial.md) - a walkthrough for creating a custom analogue clock widget
 
 ## Motivation
 
