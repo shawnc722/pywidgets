@@ -65,23 +65,16 @@ with `pip3 install [filename]`.
 To run it in place, first install all the dependencies from the requirements 
 section and then clone the project with `git clone https://github.com/shawnc722/pywidgets.git`.  
 
-It isn't required, but the default font is [Inter](https://github.com/rsms/inter) and if it's not on your system already  
-you may want to install it. If not, a different font will be automatically chosen - though you can also just specify one yourself.
+It isn't required, but the default font is [Inter](https://github.com/rsms/inter) and if it's not on your system already you may want to install it. If not, a different font will be automatically chosen - though you can also just specify one yourself.
 
 To start up the sample page, just run the module from your command line: `python -m pywidgets` or `python3 -m pywidgets` (depending on your system).
 
 ## Usage
 
-This project can be used as-is via `python -m pywidgets` or `python3 -m pywidgets`, customized using existing widgets 
-and data sources, and/or extended with new widgets and data sources. The `pywidgets.sample_data` 
-module provides some data sources to get you started - to see which ones and their current 
-values, run it in your console with:  
-`python -m pywidgets.sample_data`  
+This project can be used as-is via `python -m pywidgets` or `python3 -m pywidgets`, customized using existing widgets and data sources, and/or extended with new widgets and data sources. The `pywidgets.sample_data` module provides some data sources to get you started - to see which ones and their current values, run it in your console with: `python -m pywidgets.sample_data`  
 Once you've chosen a data source to use - for example let's go with `overall usage` from the `cpu cmds` section - 
 we just need to use the titles and name to find it in `sample_data`'s `all_cmds` dict. For our 
-example, that means we want:  
-`sample_data.all_cmds['cmd cmds']['overall usage']`  
-which returns a [PyCmd](todo) corresponding to the current total CPU usage of the system.  
+example, that means we want `sample_data.all_cmds['cmd cmds']['overall usage']`, which returns a [PyCmd](todo) corresponding to the current total CPU usage of the system.  
 If you have a data source that isn't in `sample_data`, all you need to do is make it into a callable. If it's coming from a python import it probably already is, ie the `datetime.now()` function from the datetime package, and if it's from your terminal you only need to make a [BashCmd](todo).  
 
 With a data source chosen, the next step is to pick (or create) a widget to display it. Example images and further detail for each widget is available in the [widgets](todo) page (TODO).
