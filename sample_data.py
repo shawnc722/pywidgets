@@ -107,7 +107,7 @@ net_cmds = {
     "current up (bytes)": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_sent"),
     "total up": PyCmd(net_io_counters, get_attr="bytes_sent", postformat_fn=bytes2human),
     "total up (bytes)": PyCmd(net_io_counters, get_attr="bytes_sent"),
-    "current down": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv", postformat_fn=bytes2human),
+    "current down": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv", postformat_fn=bytes2human),  # must be divided by time since last call to give speed rather than count
     "current down (bytes)": PyCmdWithMem(net_io_counters, lambda x, y: x - y, get_attr="bytes_recv"),
     "total down": PyCmd(net_io_counters, get_attr="bytes_recv", postformat_fn=bytes2human),
     "total down (bytes)": PyCmd(net_io_counters, get_attr="bytes_recv"),

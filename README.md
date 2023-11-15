@@ -42,7 +42,7 @@ the CPU over the last one minute and updates every second:
 ![Image of above widget](pictures/graph_widget_example.jpg "The widget created by the code above")
 
 ## Requirements
-Python version 3.11 or higher is required, because this project makes heavy use of the new type hinting features. Additionally, the following python packages are required (requirements are automatically install if you follow the install guide below):
+Python version 3.11 or higher is required, because this project makes heavy use of the new type hinting features. Additionally, the following python packages are required (requirements are automatically installed if you follow the install guide below):
 * PyQt6
 * psutil
 * pyqtgraph  
