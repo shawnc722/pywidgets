@@ -116,6 +116,7 @@ net_cmds = {
 
 nvidia_cmds = {
     "usable?": wrap_for_exceptions(lambda: BashCmd("nvidia-smi -L") is not None, [CalledProcessError,], lambda: False),  # returns true if nvidia-smi is usable and false if not
+    "query": PyCmd(_nvidiainfo, postformat_fn=lambda s: s().split(',')),  # get multiple values in one call for better performance (takes nvidia-smi query and returns list)
     "clocks": {
         "SM clock freq": _nvidiainfo('clocks.sm'),
         "SM clock freq max": _nvidiainfo('clocks.max.sm'),

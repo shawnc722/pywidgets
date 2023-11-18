@@ -52,9 +52,8 @@ window.add_widgets(
 
 if nvidia_cmds['usable?']():  # if a nvidia gpu and nvidia-smi are installed - for amd/intel/integrated gpus, skips this widget
     text = [['Temp: {}C', 'Fan Speed: {}'], ['Clock speed:', '{} / {}'], ['Power:', '{} / {}']]
-    vals = [nvidia_cmds['GPU']['temp'], nvidia_cmds['GPU']['fan speed'],
-            nvidia_cmds['clocks']['graphics clock freq'], nvidia_cmds['clocks']['graphics clock freq max'](),
-            nvidia_cmds['power']['draw'], nvidia_cmds['power']['limit']()]
+    vals = PyCmd(nvidia_cmds['query'],
+                 'temperature.gpu,fan.speed,clocks.gr,clocks.max.gr,power.draw,enforced.power.limit')  # using query rather than each key individually for performance
 
     gpustr = JITstring(pywidgets.html_table(text, title='<b>' + str(nvidia_cmds['GPU']['name']) + '</b>'), vals)
     percs = [numbers_only_fn(nvidia_cmds['GPU']['usage'])]
