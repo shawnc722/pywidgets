@@ -1,11 +1,8 @@
 #!/usr/bin/python3.11
-import subprocess
-
-from pywidgets.JITstrings import JITstring, PyCmd, BashCmd
+import pywidgets
+from pywidgets.JITstrings import JITstring, PyCmd
 from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmds, cur_OS, numbers_only_fn, \
     bytes2human, disk_cmds, temp_cmds, net_cmds
-from pywidgets.sample_web_data import web_cmds
-import pywidgets
 
 background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background. None for no bg
 window = pywidgets.Window(background_color=background_color, use_async=(cur_OS == 'Windows'), shadow_radius=5)
@@ -30,7 +27,7 @@ add_cores_avg = True
 per_core = cpu_cmds['per core usage']
 num_cores = int(cpu_cmds['cpu thread count'])
 title = "<b>CPU Usage</b>"
-# this linecolor just uses your default color at half opacity for the cpu graph to tone down the mess of lines
+# this linecolor just uses your default color at half opacity for the cpu graph to tone down the mess of lines for high core count cpus
 linecolor = tuple(val if i < 3 else val//2 for i, val in enumerate(window.palette().window().color().getRgb()))
 if add_cores_avg:
     def fn():
@@ -45,25 +42,25 @@ else:
 
 yrange = int(net_cmds['total net max speed'])  # for the network download GraphWidget
 yrange = (0, 100_000_000) if yrange == 0 else (0, yrange)  # if the max speed is unknown (0), set to ~100MBPS
+update_interval = 0.5  # s
 window.add_widgets(
     [pywidgets.GraphWidget(window, "<b>RAM Usage</b>", mem_cmds['used bytes'],
                            yrange=(0, mem_cmds['total bytes'].run()), ylabel_str_fn=bytes2human),
-     pywidgets.GraphWidget(window, "<b>Network Download</b>", net_cmds['current down (bytes)'],
-                           yrange=yrange, ylabel_str_fn=bytes2human)])
+     pywidgets.GraphWidget(window, "<b>Network Download</b>",
+                           PyCmd(net_cmds['current down (bytes)'], postformat_fn=lambda x: x / update_interval),
+                           yrange=yrange, ylabel_str_fn=bytes2human, update_interval=round(update_interval*1000))])
 
-try:
-    BashCmd("nvidia-smi -L")  # test that a nvidia card is installed, but we don't care about the output
+if nvidia_cmds['usable?']():  # if a nvidia gpu and nvidia-smi are installed - for amd/intel/integrated gpus, skips this widget
     text = [['Temp: {}C', 'Fan Speed: {}'], ['Clock speed:', '{} / {}'], ['Power:', '{} / {}']]
     vals = [nvidia_cmds['GPU']['temp'], nvidia_cmds['GPU']['fan speed'],
-            nvidia_cmds['clocks']['graphics clock freq'], nvidia_cmds['clocks']['graphics clock freq max'],
-            nvidia_cmds['power']['draw'], nvidia_cmds['power']['limit']]
+            nvidia_cmds['clocks']['graphics clock freq'], nvidia_cmds['clocks']['graphics clock freq max'](),
+            nvidia_cmds['power']['draw'], nvidia_cmds['power']['limit']()]
 
     gpustr = JITstring(pywidgets.html_table(text, title='<b>' + str(nvidia_cmds['GPU']['name']) + '</b>'), vals)
     percs = [numbers_only_fn(nvidia_cmds['GPU']['usage'])]
     window.add_widget(pywidgets.ProgressArcsWidget(window, gpustr, percs, title="<b>GPU Usage</b>", update_interval=500))
-except subprocess.CalledProcessError: pass  # if nvidia-smi fails, no nvidia gpu
 
-try:  # in case the system this is running on has exactly the same device names and labels as mine
+try:  # the keys of temp_cmds accessed here will usually need to be changed - if so, your system's options will be printed when the script is run
     tempstr = JITstring(pywidgets.html_table(
         [["CPU temp:", "{}C"], ["NVME temp:", "{}C"], ["Wifi temp:", "{}C"]], "<b>Temperatures</b>"),
         [temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]])
@@ -78,21 +75,6 @@ try:  # in case the system this is running on has exactly the same device names 
     window.add_widgets([pywidgets.HrWidget(window), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
 except KeyError:
     print("Invalid devices in temp_cmds - temperature widgets won't be added. Possible devices:", list(temp_cmds.keys()))
-
-#window.add_widget(pywidgets.NotificationWidget(window))
-
-
-def fmt_weather():
-    weather = web_cmds['weather cmds']['current weather']()
-    desc, img = web_cmds['weather cmds']['get icon'](weather['weathercode'], weather['is_day'] == 1)
-    text = f"<b>{desc}</b><br/>Currently in {web_cmds['ip cmds']['city']} it's " + \
-           f"{weather['temperature']}\N{DEGREE SIGN}C with a wind speed of {weather['windspeed']} km/h.<br/>"
-    return text, img
-
-
-window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather, img_size=None,
-                                                update_interval=1000*60*10))  # update every 10min
-
 
 window.finalize()
 pywidgets.start()

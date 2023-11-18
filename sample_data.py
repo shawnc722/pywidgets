@@ -4,8 +4,7 @@ from psutil import cpu_percent, virtual_memory, cpu_freq, disk_partitions, \
 from psutil._common import bytes2human
 from platform import uname, system, version
 from pywidgets.JITstrings import PyCmd, BashCmd, PyCmdWithMem
-import pywidgets
-
+from subprocess import CalledProcessError
 
 cur_OS = system()
 BYTES_PER_MEGABIT = 131072
@@ -51,10 +50,10 @@ def populate_runtime_strs(cmds):
 def wrap_for_exceptions(cmd: callable, exceptions: list, handler: callable) -> callable:
     """Returns the given command wrapped in a try/catch block that handles exceptions by calling the handler command."""
     def wrapped():
-        try: cmd()
+        try: return cmd()
         except BaseException as e:
             if type(e) not in exceptions: raise e
-            handler()
+            return handler()
     return wrapped
 
 
@@ -116,6 +115,7 @@ net_cmds = {
 }
 
 nvidia_cmds = {
+    "usable?": wrap_for_exceptions(lambda: BashCmd("nvidia-smi -L") is not None, [CalledProcessError,], lambda: False),  # returns true if nvidia-smi is usable and false if not
     "clocks": {
         "SM clock freq": _nvidiainfo('clocks.sm'),
         "SM clock freq max": _nvidiainfo('clocks.max.sm'),
