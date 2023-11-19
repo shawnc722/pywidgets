@@ -1,4 +1,4 @@
-from typing import Union, Callable
+from typing import Callable, Sequence
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot
@@ -28,8 +28,8 @@ class Window(QtWidgets.QMainWindow):
 
     def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
                  background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
-                 set_size: Callable[[QRect], list[int, int, int, int]] = None, use_async: bool = False,
-                 shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list = []):
+                 set_size: Callable[[QtWidgets.QMainWindow, QRect], None] = None, use_async: bool = False,
+                 shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list[str] = []):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
@@ -83,7 +83,6 @@ class Window(QtWidgets.QMainWindow):
                 window.setFixedWidth(width)
                 window.setMaximumHeight(dims.height())
                 window.move(dims.x() + dims.width() - width - offset, dims.y())
-                #return [dims.x() + dims.width() - width - offset, dims.y(), width, dims.height()]
 
         self.set_size = set_size
 
@@ -211,9 +210,9 @@ class Window(QtWidgets.QMainWindow):
 
 
 class ArcsWidget(QWidget):
-    def __init__(self, parent: QWidget, percs: Union[list, Callable], percent: bool = True, size: float = 1,
-                 update_interval: Union[int, None] = 1000, arccol: QColor = None, arcthic: float = .5,
-                 arcstart: float = 270., arcspan: float = -270., arcspace: float = 1):
+    def __init__(self, parent: QWidget, percs: Sequence[Callable[[], float]] | Callable[[], Sequence[float]],
+                 percent: bool = True, size: float = 1, update_interval: int | None = 1000, arccol: QColor = None,
+                 arcthic: float = .5, arcstart: float = 270., arcspan: float = -270., arcspace: float = 1):
         """Concentric arcs showing the percentage of each of the items in percs. The first item in the list is the outermost arc.
         :param parent: the parent widget of this widget, usually the main window.
         :param percs: either a list of commands or a single function/command that produces a list. Results must match the percent argument.
@@ -260,7 +259,7 @@ class ArcsWidget(QWidget):
             self.arcspace = round(self.fontMetrics().lineSpacing() * self.arcspace_perc)
 
     def do_cmds(self) -> None:
-        if type(self.percs) == list:
+        if isinstance(self.percs, Sequence):
             self._percs_now = [float(i) for i in self.percs]
         else:
             self._percs_now = list(self.percs())
@@ -294,8 +293,9 @@ class ArcsWidget(QWidget):
 class ProgressArcsWidget(QWidget):
     pos_options = ("bottom left", "bottom right", "top right", "top left")
 
-    def __init__(self, parent: QWidget, text: Union[JITstring, str, PyCmd], percs: Union[list, Callable],
-                 percent: bool = True, title: Union[JITstring, str] = None, height: float = .1, update_interval: int = 1000,
+    def __init__(self, parent: QWidget, text: str | PyCmd | JITstring,
+                 percs: Sequence[Callable[[], float]] | Callable[[], float], percent: bool = True,
+                 title: JITstring | str = None, height: float = .1, update_interval: int = 1000,
                  arccol: QColor = None, arcthic: float = 0.6, arcpos: str = "top left"):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
         :param parent: the parent widget of this widget, usually the main window.
@@ -382,8 +382,8 @@ class ProgressArcsWidget(QWidget):
 
 
 class ProgressBarWidget(QWidget):
-    def __init__(self, parent: QWidget, perc: Callable = None, height: int = None, update_interval: int = None,
-                 barcol: QColor = None, bgcol: QColor = None, squareness: float = 3):
+    def __init__(self, parent: QWidget, perc: Callable[[], float] = None, height: int = None,
+                 update_interval: int = None, barcol: QColor = None, bgcol: QColor = None, squareness: float = 3):
         """A progress bar that can be manually updated or given a command and an update interval for automatic updates.
         :param parent: the parent widget of this widget, usually a sub-widget of the main window.
         :param perc: a function/command that produces a float between 0 and 1.
@@ -398,7 +398,7 @@ class ProgressBarWidget(QWidget):
         self.setFixedHeight(height)
         self.barcol = QColor(barcol) if barcol else self.palette().light().color()
         self.bgcol = QColor(bgcol) if bgcol is not None else self.palette().window().color()
-        self._progress = 0
+        self._progress: float = 0
         self.squareness = squareness
         pol = self.sizePolicy()
         pol.setHorizontalStretch(255)  # max stretch
@@ -416,7 +416,7 @@ class ProgressBarWidget(QWidget):
         :param perc: a float from 0 to 100.
         """
         if perc is None: perc = self.perc()  # will fail if you don't provide a percentage in constructor or argument
-        self._progress = min(100, max(0, perc))  # force progress to stay between 0 and 1
+        self._progress = min(100., max(0., perc))  # force progress to stay between 0 and 1
         self.update()
 
     def paintEvent(self, event):
@@ -435,9 +435,10 @@ class ProgressBarWidget(QWidget):
 
 
 class GraphWidget(pg.PlotWidget):
-    def __init__(self, parent: QWidget, title: Union[JITstring, str], getdata: Callable, height: int = -1,
-                 update_interval: int = 500, time_span: int = 60000, yrange: tuple = (0, 100), ylabel_str_fn=str,
-                 linecolor=None, linecolors: Union[None, list, tuple] = None, linewidth: float = None, lines: int = 1):
+    def __init__(self, parent: QWidget, title: JITstring | str, getdata: Callable[[], float] | Callable[[], Sequence[float]],
+                 height: int = -1, update_interval: int = 500, time_span: int = 60000, yrange: tuple = (0, 100),
+                 ylabel_str_fn: Callable[[float], str] = str, linecolor=None,
+                 linecolors: None | Sequence = None, linewidth: float = None, lines: int = 1):
         """
         A widget showing a graph with time as the x-axis and a title.
         :param parent: the parent widget of this widget, usually the main window.
@@ -522,8 +523,8 @@ class GraphWidget(pg.PlotWidget):
 
 
 class Visualizer(pg.PlotWidget):
-    def __init__(self, parent: QWidget, getdata: Callable, yrange: tuple = None, linecolor=None, linewidth: float = None,
-                 update_interval: int = 500):
+    def __init__(self, parent: QWidget, getdata: Callable[[], Sequence[float]], yrange: tuple = None, linecolor=None,
+                 linewidth: float = None, update_interval: int = 500):
         """A mirrored line graphing the output of getdata with no axes, labels, or title. Meant to be used in other widgets.
         :param parent: the parent widget of this widget.
         :param getdata: a function or PyCmd that returns a list of floats. The length of the list must be the same each call.
@@ -559,9 +560,9 @@ class Visualizer(pg.PlotWidget):
 
 
 class ImageWithTextWidget(QWidget):
-    def __init__(self, parent: QWidget, text: str | JITstring = None, img: bytes | Callable = None,
-                 text_and_img: Callable = None, img_size: tuple[int, int] = None, img_side: str = 'left',
-                 update_interval: int | None = 1000*60*60):
+    def __init__(self, parent: QWidget, text: str | JITstring = None, img: bytes | Callable[[], bytes] = None,
+                 text_and_img: Callable[[], tuple[str, bytes]] = None, img_size: tuple[int, int] = None,
+                 img_side: str = 'left', update_interval: int | None = 1000*60*60):
         """
         A widget for displaying an image beside text.
         :param parent: the parent widget of this widget.
@@ -669,7 +670,7 @@ class _MediaListFramework(QWidget):
 
 class _MediaFramework(QWidget):
     def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None, butsize: int = None,
-                 primary_color: Union[str, QColor] = None, secondary_color: Union[str, QColor] = None):
+                 primary_color: str | QColor = None, secondary_color: str | QColor = None):
         """
         A skeleton of a MediaWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the MediaListWidget controlling it.
@@ -805,7 +806,7 @@ class _MediaFramework(QWidget):
         """
         self.infolabel.setText(f"{title}<br>{artist}")
 
-    def update_player(self, playername):
+    def update_player(self, playername: str):
         """
         Call when you want the player name updated for whatever reason.
         :param playername: the new playername to set.
@@ -813,7 +814,7 @@ class _MediaFramework(QWidget):
         self.playername = playername
         self.playernamelabel.setText(f"<b>{self.playername}</b>")
 
-    def progressupdate(self, perc):
+    def progressupdate(self, perc: float):
         """
         Updates the progress bar percentage.
         :param perc: the percentage to update the bar with. From 0-1 inclusive.
@@ -848,7 +849,7 @@ class NotificationWidgetFramework(QWidget):
 
 
 class HrWidget(QtWidgets.QFrame):
-    def __init__(self, parent, height: int = 3, color: str = None):
+    def __init__(self, parent: QWidget, height: int = 3, color: str = None):
         """
         A horizontal rule across the window.
         :param parent: the parent widget containing this one.
@@ -865,7 +866,7 @@ class HrWidget(QtWidgets.QFrame):
 
 
 class TextWidget(QtWidgets.QLabel):
-    def __init__(self, parent: QWidget, text: Union[JITstring, str] = None, alignment: str = "Center",
+    def __init__(self, parent: QWidget, text: JITstring | str = None, alignment: str = "Center",
                  wordwrap: bool = True, update_interval: int = None):
         """
         A simple widget for showing text; can be a dynamic JITstring or regular static text.
@@ -889,8 +890,8 @@ class TextWidget(QtWidgets.QLabel):
         self.setText(str(self.get_text))
 
 
-def html_table(array: list, title='', style: str = "border-collapse: collapse;", right_td_style: str = "text-align: right;",
-               tstyle: str = "text-align: center;") -> str:
+def html_table(array: Sequence[Sequence], title='', style: str = "border-collapse: collapse;",
+               right_td_style: str = "text-align: right;", tstyle: str = "text-align: center;") -> str:
     """
     Creates a 2 column HTML table out of the provided info for use in pywidgets.
     :param array: a list of lists where each secondary list has two rows.
@@ -908,7 +909,7 @@ def html_table(array: list, title='', style: str = "border-collapse: collapse;",
     return table
 
 
-def start():
+def start() -> None:
     global _app
     if _app is None:
         raise AssertionError("QApplication not found, have you created a Window yet?")
@@ -931,11 +932,11 @@ def schedule(coro, callback=None):
     return task
 
 
-def call_threadsafe(fn: callable, *args, context=None):
+def call_threadsafe(fn: callable, *args, context=None) -> None:
     loop.call_soon_threadsafe(fn, *args, context=context)
 
 
-def run_on_app_start(f: Callable, *args, **kwargs):
+def run_on_app_start(f: Callable, *args, **kwargs) -> None:
     """Takes the given function/method/PyCmd and runs it immediately once the QApplication starts.
     Just a wrapper for a single-shot QTimer to make code more readable."""
     QTimer.singleShot(0, PyCmd(f, *args, **kwargs))

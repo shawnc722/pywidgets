@@ -1,9 +1,12 @@
 from subprocess import check_output
-from typing import Callable, Union
+from typing import Callable, Generic, Sequence, TypeVar, Any
+
+T = TypeVar('T')
+U = TypeVar('U')
 
 
-class PyCmd(object):
-    def __init__(self, cmd: Callable, *args, postformat_fn: Callable = None, get: Union[int, object] = None,
+class PyCmd(Generic[T, U]):
+    def __init__(self, cmd: Callable[..., T], *args, postformat_fn: Callable[[T], Any] = None, get: int | object = None,
                  get_attr: str = None, _debug=False, **kwargs):
         """
         A container for a function that behaves like the function's results; think of this like the function's returned
@@ -20,7 +23,7 @@ class PyCmd(object):
         self.args = args
         self.kwargs = kwargs
         self.postformat = postformat_fn
-        if get is not None and get_attr is not None: raise RuntimeError("'get' and 'get_attr' cannot both be used.")
+        if get is not None and get_attr is not None: raise RuntimeError("'get' and 'get_attr' cannot both be used. Try nesting two PyCmds instead.")
         self.get = get
         self.get_attr = get_attr
 
@@ -41,10 +44,10 @@ class PyCmd(object):
     def __iter__(self):
         for i in self.run(): yield i
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> U:
         return self.run(*args, **kwargs)
 
-    def run(self, *runtime_args, **runtime_kwargs):
+    def run(self, *runtime_args, **runtime_kwargs) -> U:
         args = self.args + runtime_args
         kwargs = runtime_kwargs.copy()
         kwargs.update(self.kwargs)
@@ -70,18 +73,23 @@ class PyCmd(object):
 
 
 class BashCmd(PyCmd):
-    def __init__(self, cmd: str, use_shell: bool = True, postformat_fn: Callable = None):
+    def __init__(self, cmd: str, use_shell: bool = True, postformat_fn: Callable[[str], T] = None,
+                 get: int | object = None, get_attr: str = None, _debug=False, **kwargs):
         """
         Similar to a PyCmd, but using the system terminal to run the command rather than Python.
         :param cmd: the command to pass to the sytem terminal.
         :param use_shell: True by default. Uses system shell to interpret, e.g. /bin/sh on Linux.
         :param postformat_fn: an optional function to format the results.
+        :param get: a key to access from the output of cmd (e.g. output[key]). Can't be used with get_attr.
+        :param get_attr: an attribute to access from the output of cmd (e.g. output.attr). Can't be used with get.
+        :param _debug: if True, will print args and kwargs when running the PyCmd.
+        :param kwargs: the keyword arguments to pass to the function on runtime. Adds to any kwargs given if calling the PcCmd.
         """
         self.cmd = cmd
         self.postformat = postformat_fn
         self.use_shell = use_shell
 
-    def run(self):
+    def run(self) -> str | T:
         if self.postformat:
             return self.postformat(check_output(self.cmd, shell=self.use_shell).decode().strip())
         return check_output(self.cmd, shell=self.use_shell).decode().strip()
@@ -119,7 +127,7 @@ class PyCmdWithMem(PyCmd):
 
 
 class JITstring(object):
-    def __init__(self, static_text: str, cmds: Union[list, Callable]):
+    def __init__(self, static_text: str, cmds: Sequence | Callable):
         """
         A "Just In Time" string that only formats its arguments when displayed, to allow changing the value with each use.
         :param static_text: the unchanging text to format the commands into, with curly brackets anywhere a command should be inserted.
