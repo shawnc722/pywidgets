@@ -281,10 +281,10 @@ class ArcsWidget(QWidget):
             ioff = i * 2 * self.arcspace + self.arcthic
             arcsize = self.height() - ioff
             ioff = round(ioff / 2)
-            painter.drawArc(ioff, ioff, arcsize, arcsize, self.arcstart * 16, round(self.arcspan * 16))
+            painter.drawArc(ioff, ioff, arcsize, arcsize, round(self.arcstart * 16), round(self.arcspan * 16))
             pen.setWidth(self.arcthic)
             painter.setPen(pen)
-            painter.drawArc(ioff, ioff, arcsize, arcsize, self.arcstart * 16, round(self.arcspan * perc * 16))
+            painter.drawArc(ioff, ioff, arcsize, arcsize, round(self.arcstart * 16), round(self.arcspan * perc * 16))
             pen.setWidth(max(round(self.arcthic / 4), 1))
             painter.setPen(pen)
         painter.end()
@@ -294,7 +294,7 @@ class ProgressArcsWidget(QWidget):
     pos_options = ("bottom left", "bottom right", "top right", "top left")
 
     def __init__(self, parent: QWidget, text: str | PyCmd | JITstring,
-                 percs: Sequence[Callable[[], float]] | Callable[[], float], percent: bool = True,
+                 percs: Sequence[Callable[[], float]] | Callable[[], Sequence[float]], percent: bool = True,
                  title: JITstring | str = None, height: float = .1, update_interval: int = 1000,
                  arccol: QColor = None, arcthic: float = 0.6, arcpos: str = "top left"):
         """A widget that displays percentage values as arcs around some text - or a JITstring, for dynamic text.
@@ -384,9 +384,9 @@ class ProgressArcsWidget(QWidget):
 class ProgressBarWidget(QWidget):
     def __init__(self, parent: QWidget, perc: Callable[[], float] = None, height: int = None,
                  update_interval: int = None, barcol: QColor = None, bgcol: QColor = None, squareness: float = 3):
-        """A progress bar that can be manually updated or given a command and an update interval for automatic updates.
+        """A linear progress bar that can be manually updated or given a command and an update interval for automatic updates.
         :param parent: the parent widget of this widget, usually a sub-widget of the main window.
-        :param perc: a function/command that produces a float between 0 and 1.
+        :param perc: a function/command that produces a float between 0 and 1. If given, make sure to set update_interval or call set_progress() manually.
         :param height: the height of the widget in pixels. If none, the height is a tenth of the parent widget's.
         :param update_interval: the time in ms between calls to the perc function. Only relevant if perc is given too.
         :param barcol: the color of the bar as a Qt color.
@@ -403,11 +403,11 @@ class ProgressBarWidget(QWidget):
         pol = self.sizePolicy()
         pol.setHorizontalStretch(255)  # max stretch
         self.setSizePolicy(pol)
-        if perc is not None:
-            self.perc = perc
+        if perc is not None: self.perc = perc
+        if update_interval is not None:
             self.update_interval = update_interval
             self.timer = QTimer()
-            self.timer.timeout.connect(self.update)
+            self.timer.timeout.connect(self.set_progress)
             self.timer.start(self.update_interval)
         self.set_progress(0)
 
@@ -522,7 +522,7 @@ class GraphWidget(pg.PlotWidget):
                 self.data_lines[i].setData(self.xs, y)
 
 
-class Visualizer(pg.PlotWidget):
+class VisualizerWidget(pg.PlotWidget):
     def __init__(self, parent: QWidget, getdata: Callable[[], Sequence[float]], yrange: tuple = None, linecolor=None,
                  linewidth: float = None, update_interval: int = 500):
         """A mirrored line graphing the output of getdata with no axes, labels, or title. Meant to be used in other widgets.
@@ -570,7 +570,7 @@ class ImageWithTextWidget(QWidget):
         :param img: the image to display as bytes, or a callable (function, PyCmd, etc) that returns an image in bytes.
         :param text_and_img: one callable that returns both text and img parameters in a tuple of (text, img). Both text
             and img parameters are ignored if this isn't None.
-        :param img_size: a fixed size for the image in pixels. Default is dependant on how much space the image has.
+        :param img_size: a fixed size for the image in pixels. Default is dependent on how much space the image has.
         :param img_side: which side of the widget the image is on.
         :param update_interval: the time in ms between updates - defaults to 1 hour. Set to None to disable updates.
         """
@@ -925,7 +925,7 @@ def schedule(coro, callback=None):
         task = loop.create_task(coro)
     except AttributeError:  # if loop is None, but this way is hopefully faster than checking (only first call can fail)
         raise AssertionError("One of your widgets is trying to use async functionality, which is disabled. " +
-                             "Make sure qtinter is installed and that your run_application call isn't disabling async.")
+                             "Make sure qtinter is installed and that use_async is True in your Window initialization.")
     if callback is None:
         def callback(task): task.cancel()
     task.add_done_callback(callback)
