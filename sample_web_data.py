@@ -1,10 +1,12 @@
 from pywidgets.sample_data import *
 from pywidgets.external_sources import weather_icons
 from requests import get
+from requests.exceptions import ConnectionError
 
 
 def ip_api_req(field: str):
-    return PyCmd(get, 'http://ip-api.com/json/', params=dict(fields=field), postformat_fn=lambda x: x.json()[field])
+    cmd = PyCmd(get, 'http://ip-api.com/json/', params=dict(fields=field), postformat_fn=lambda x: x.json()[field])
+    return wrap_for_exceptions(cmd, [ConnectionError], lambda: print('api request failed'))
 
 
 def weather_api_req(params: dict, getkeys=('hourly', 'precipitation_probability'), addtz='auto'):
@@ -18,7 +20,8 @@ def weather_api_req(params: dict, getkeys=('hourly', 'precipitation_probability'
         for key in getkeys: last = last[key]
         return last
 
-    return PyCmd(get, 'https://api.open-meteo.com/v1/forecast', params=newparams, postformat_fn=f)
+    cmd = PyCmd(get, 'https://api.open-meteo.com/v1/forecast', params=newparams, postformat_fn=f)
+    return wrap_for_exceptions(cmd, [ConnectionError], lambda: print('api request failed'))
 
 
 def get_weather_icon(code: int | str = 53, day=True):

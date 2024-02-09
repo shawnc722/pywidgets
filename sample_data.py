@@ -54,7 +54,7 @@ def wrap_for_exceptions(cmd: callable, exceptions: list, handler: callable) -> c
         except BaseException as e:
             if type(e) not in exceptions: raise e
             return handler()
-    return wrapped
+    return PyCmd(wrapped)
 
 
 system_strings = {

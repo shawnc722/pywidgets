@@ -5,7 +5,6 @@ import pywidgets
 from pywidgets.widgets import _MediaListFramework, _MediaFramework, schedule, run_on_app_start, call_threadsafe, QWidget
 from asyncio import sleep
 
-
 from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as SessionManager,
     GlobalSystemMediaTransportControlsSession as Session,
@@ -18,6 +17,7 @@ from winsdk.windows.ui.notifications import UserNotificationChangedEventArgs as 
 
 from winsdk.windows.storage.streams import DataReader, IRandomAccessStreamReference
 from winsdk.windows.foundation import AsyncStatus
+from winsdk.windows.applicationmodel import AppInfo
 
 NOTIME = timedelta(0)
 
@@ -58,8 +58,13 @@ class MediaListWidget(_MediaListFramework):
         for session in expired: self.remove_widget(session)
 
     def new_session(self, session: Session):
-        name = session.source_app_user_model_id.replace('.exe', '').title()
-        self.add_widget(MediaWidget(self, session=session, playername=name), session.source_app_user_model_id)
+        id = session.source_app_user_model_id
+        try:
+            name = AppInfo.get_from_app_user_model_id(id).display_info.display_name
+            # get logo to show here too? it's display_info.get_logo
+        except:  # this'll fail if it's not a UWP app but if it fails for any reason just use the appID
+            name = id.replace('.exe', '').title()
+        self.add_widget(MediaWidget(self, session=session, playername=name), id)
 
 
 class MediaWidget(_MediaFramework):
@@ -119,9 +124,8 @@ class MediaWidget(_MediaFramework):
                 self.has_progress = self.controls.is_playback_position_enabled
 
     def timeline_changed(self, session: Session, args=None):
-        ts = session.get_timeline_properties()
+        self.last_timeline = session.get_timeline_properties()  # sometimes returns None, at least with apple music app
         self.last_update_call = datetime.utcnow()
-        self.last_timeline = ts
         self.playtime_since_last_update = NOTIME
         self.update_timeline()
 
@@ -165,13 +169,14 @@ class MediaWidget(_MediaFramework):
         """
         Updates the progressbar with the correct percentage.
         """
+        if not self.last_timeline: return  # right now just ignore fuckery
         now = datetime.utcnow()
         if self.playing: self.playtime_since_last_update += now - self.last_update_call
         self.last_update_call = now
         length = self.last_timeline.end_time - self.last_timeline.start_time
         perc = self.last_timeline.position + self.playtime_since_last_update
 
-        perc = 0 if length == 0 else perc / length
+        perc = 0 if not length else perc / length
 
         self.progressupdate(perc)
 
