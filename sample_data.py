@@ -10,13 +10,14 @@ cur_OS = system()
 BYTES_PER_MEGABIT = 131072
 
 
-def _test_cmds(cmds, title=None, layer=0):
+def _test_cmds(cmds, title=None, layer=0, blacklist=()):
     """Prints output of given commands to test compatibility."""
     if title is not None: print(layer * '  ' + title)
     for k, v in cmds.items():
         if type(v) == dict:
-            _test_cmds(v, k, layer + 1)
+            _test_cmds(v, k, layer + 1, blacklist)
             continue
+        if k in blacklist: continue
         print((layer + 1) * "  " + f"{k}:  {v}")
 
 
@@ -209,7 +210,7 @@ if __name__ == "__main__":
     # if this is run on its own, test all the commands and print results.
     for key, item in all_cmds.items():
         try:
-            _test_cmds(item, title=f"{key}:")
+            _test_cmds(item, title=f"{key}:", blacklist=('query',) if key == 'nvidia cmds' else ())
             print()
         except Exception as e:
             print(f"Error in {key}:", e)
@@ -218,6 +219,7 @@ if __name__ == "__main__":
     if perm == 'y' or perm == 'yes':
         from pywidgets.sample_web_data import web_cmds
         try:
-            _test_cmds(web_cmds, title="web cmds:")
+            _test_cmds(web_cmds, title="web cmds:", blacklist=('get icon',))
+            print("weather cmds > get icon (trimmed output): ", str(web_cmds['weather cmds']['get icon'])[:30] + '...')
         except Exception as e:
             print("Error in web cmds:", e)
