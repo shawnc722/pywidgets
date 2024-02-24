@@ -48,9 +48,10 @@ Python version 3.11 or higher is required, because this project makes heavy use 
 * pyqtgraph  
 
 The following packages aren't required for the base project but enable certain widgets (currently only required on Windows):
-* asyncio
-* qtinter
+* asyncio (Windows only)
+* qtinter (Windows only)
 * winsdk (Windows only)
+* requests
 
 ## Installation or Getting Started
 
@@ -60,7 +61,10 @@ First, ensure you have python 3.11 or higher and pip (the python install guide i
 
 To install as a package, download the latest wheel (.whl)
 from the [releases](https://github.com/shawnc722/pywidgets/releases) section and install it, plus dependencies,
-with `pip3 install [filename]`.
+with `python -m pip install [filename]`. By default, it won't have async widgets on Windows (the media and notification widgets, 
+currently) or any online capabilities (weather/location data from open source APIs). If you want either or both, add
+`[async]`, `[web]`, or `[async,web]` immediately after the filename, for example:  
+`python -m pip install pywidgets-0.8-py3-none-any.whl[async,web]` 
 
 To run it in place, first install all the dependencies from the requirements 
 section and then clone the project with `git clone https://github.com/shawnc722/pywidgets.git`.  
