@@ -1,9 +1,11 @@
 from typing import Callable, Sequence
 from PyQt6 import QtWidgets
+from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot
-from PyQt6.QtGui import QPainter, QPen, QPolygon, QRegion, QColor, QPainterPath, \
-    QScreen, QResizeEvent, QPalette, QAction, QPixmap
+from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, QRectF, pyqtSlot, QSize
+from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QScreen, QResizeEvent, QPalette, QAction, QPixmap, \
+    QPainterPath, QRegion
+from PyQt6.QtSvg import QSvgRenderer
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
 import numpy as np
@@ -617,6 +619,57 @@ class ImageWithTextWidget(QWidget):
             self.img_label.setFixedSize(*img_size)'''
 
 
+class SvgIcon(QtWidgets.QLabel):
+    def __init__(self, parent: QWidget, data: str, min_size=(8, 8), maintain_aspect=True):
+        """An icon using SVG syntax that respects the svg currentColor attribute."""
+        super().__init__(parent)
+        self.svg = data
+        self.svg_renderer = QSvgRenderer(data)
+        # self.setMinimumSize(*min_size)
+        self.min_size = QSize(*min_size)
+        self.hover = False
+        self.hover_changed = True
+        self.maintain_aspect = maintain_aspect
+        self.setScaledContents(False)
+        pol = self.sizePolicy()
+        pol.setHorizontalPolicy(pol.Policy.MinimumExpanding)
+        pol.setVerticalPolicy(pol.Policy.MinimumExpanding)
+        self.setSizePolicy(pol)
+
+    def sizeHint(self): return self.min_size
+
+
+    def resizeEvent(self, event: QResizeEvent = None):
+        if self.hover_changed:
+            self.svg_renderer.load(self.recolor(getattr(self.palette(), 'light' if self.hover else 'window')().color()).encode())
+            self.hover_changed = False
+            if self.maintain_aspect:
+                self.svg_renderer.setAspectRatioMode(self.svg_renderer.aspectRatioMode().KeepAspectRatio)
+        pixmap = QPixmap(self.size())
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        self.svg_renderer.render(painter)
+        painter.end()
+        self.setPixmap(pixmap)
+
+    def enterEvent(self, event):
+        self.hover = True
+        self.hover_changed = True
+        self.resizeEvent()
+
+    def leaveEvent(self, a0):
+        self.hover = False
+        self.hover_changed = True
+        self.resizeEvent()
+
+    def recolor(self, color: QColor):
+        return self.svg.replace('currentColor', 'rgb({},{},{})'.format(*color.getRgb()[:3]))
+
+    def replace_svg(self, data: str):
+        self.svg = data
+        self.hover_changed = True
+        self.resizeEvent()
+
 
 
 class _MediaListFramework(QWidget):
@@ -669,6 +722,13 @@ class _MediaListFramework(QWidget):
 
 
 class _MediaFramework(QWidget):
+    media_icons = {
+        'play': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7.50632 3.14928C6.1753 2.29363 4.4248 3.24931 4.4248 4.83164V19.1683C4.4248 20.7506 6.1753 21.7063 7.50632 20.8507L18.6571 13.6823C19.8817 12.8951 19.8817 11.1049 18.6571 10.3176L7.50632 3.14928Z"/></svg>',
+        'pause': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6 3C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H9C10.1046 21 11 20.1046 11 19V5C11 3.89543 10.1046 3 9 3H6Z"/><path d="M15 3C13.8954 3 13 3.89543 13 5V19C13 20.1046 13.8954 21 15 21H18C19.1046 21 20 20.1046 20 19V5C20 3.89543 19.1046 3 18 3H15Z"/></svg>',
+        'forward': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M3.42091 4.83828C2.43562 4.07194 1 4.77409 1 6.02231V17.9777C1 19.2259 2.43562 19.928 3.42091 19.1617L11.6139 12.7893C11.8575 12.5999 12 12.3086 12 12V17.9777C12 19.2259 13.4356 19.928 14.4209 19.1617L22.6139 12.7893C22.8575 12.5999 23 12.3086 23 12C23 11.6914 22.8575 11.4001 22.6139 11.2106L14.4209 4.83828C13.4356 4.07194 12 4.77409 12 6.02231V12C12 11.6914 11.8575 11.4001 11.6139 11.2106L3.42091 4.83828Z"/></svg>',
+        'backward': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M9.57909 4.83828C10.5644 4.07194 12 4.77409 12 6.02231V12V17.9777C12 19.2259 10.5644 19.928 9.57909 19.1617L1.38606 12.7893C1.14247 12.5999 1 12.3086 1 12C1 11.6914 1.14247 11.4001 1.38606 11.2106L9.57909 4.83828Z"/><path d="M12 12C12 12.3086 12.1425 12.5999 12.3861 12.7893L20.5791 19.1617C21.5644 19.928 23 19.2259 23 17.9777V6.02231C23 4.77409 21.5644 4.07194 20.5791 4.83828L12.3861 11.2106C12.1425 11.4001 12 11.6914 12 12Z"/></svg>'
+    }
+
     def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None, butsize: int = None,
                  primary_color: str | QColor = None, secondary_color: str | QColor = None):
         """
@@ -713,30 +773,17 @@ class _MediaFramework(QWidget):
         self.info_layout.addWidget(self.playernamelabel)
 
         self.ctrllayout = QtWidgets.QHBoxLayout()
-        style = """
-        QPushButton{
-            background-color: $c1;
-        } 
-        QPushButton:hover{
-            background-color: $c2;
-        }"""
-        style = style.replace('$c1', primary_color if type(primary_color) == str else f'rgba{primary_color.getRgb()}')
-        style = style.replace('$c2', secondary_color if type(secondary_color) == str else f'rgba{secondary_color.getRgb()}')
-        self.setStyleSheet(style)
 
-        self.buttons = [QtWidgets.QPushButton(), QtWidgets.QPushButton(), QtWidgets.QPushButton()]
-        for but in self.buttons:
-            but.setFixedSize(butsize, butsize)
+        self.buttons = []
+        self.ctrllayout.addStretch(1)
+        for state, action in zip(('backward', 'play', 'forward'), (self.do_prev, self.do_playpause, self.do_next)):
+            but = SvgIcon(self, self.media_icons[state])
+            but.mousePressEvent = action
+            #but.setFixedSize(butsize, butsize)
+            self.buttons.append(but)
             self.ctrllayout.addWidget(but)
-        lpoints = [QPoint(round(butsize * i), round(butsize * j)) for i, j in
-                   [(1, 0), (0.6, 0.25), (0.6, 0), (0, 0.5), (0.6, 1), (0.6, 0.75), (1, 1)]]
-        ppoints = [QPoint(0, 0), QPoint(butsize, round(butsize / 2)), QPoint(0, butsize)]
-
-        npoints = [QPoint(round(butsize * i), round(butsize * j)) for i, j in
-                   [(0, 0), (0.4, 0.25), (0.4, 0), (1, 0.5), (0.4, 1), (0.4, 0.75), (0, 1)]]
-        for but, pts in zip(self.buttons, (lpoints, ppoints, npoints)): but.setMask(QRegion(QPolygon(pts)))
-        for but, fn in zip(self.buttons, (self.do_prev, self.do_playpause, self.do_next)):
-            but.clicked.connect(fn)
+            self.ctrllayout.setStretchFactor(but, 1)
+        self.ctrllayout.addStretch(1)
 
         self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5), bgcol=primary_color, barcol=secondary_color)
         pol = self.pbar.sizePolicy()
@@ -753,19 +800,13 @@ class _MediaFramework(QWidget):
 
         self.setFixedHeight(imgsize)
         self.playernamelabel.setText(f"<b>{self.playername}</b>")
+        self.update()
 
     def _redraw_playpause_button(self):
         """
         Sets the icon on the play/pause button depending on the value of self.playing
         """
-        bs = self.butsize
-        if self.playing:
-            reg = QRegion(0, 0, round(bs/3), bs)
-            reg = reg.united(reg.translated(round(2*bs/3), 0))
-            self.buttons[1].setMask(reg)
-        else:
-            self.buttons[1].setMask(QRegion(QPolygon([QPoint(x, y) for x, y in
-                                                      [(0, 0), (bs, round(bs/2)), (0, bs)]])))
+        self.buttons[1].replace_svg(self.media_icons['pause' if self.playing else 'play'])
         self.update()
 
     def do_next(self):

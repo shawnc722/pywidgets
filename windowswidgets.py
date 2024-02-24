@@ -1,3 +1,4 @@
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QPixmap
 from datetime import datetime, timedelta
 
@@ -8,7 +9,7 @@ from asyncio import sleep
 from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as SessionManager,
     GlobalSystemMediaTransportControlsSession as Session,
-    GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus
+    GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus, MediaPropertiesChangedEventArgs
 )
 
 from winsdk.windows.ui.notifications.management import UserNotificationListener, UserNotificationListenerAccessStatus
@@ -97,6 +98,7 @@ class MediaWidget(_MediaFramework):
         self.last_update_call = NOTIME
         self.playtime_since_last_update = NOTIME
         self.last_timeline = None
+        self._timer = QTimer()
 
         self.playback_changed(self.session)
         self.timeline_changed(self.session)
@@ -124,7 +126,7 @@ class MediaWidget(_MediaFramework):
                 self.has_progress = self.controls.is_playback_position_enabled
 
     def timeline_changed(self, session: Session, args=None):
-        self.last_timeline = session.get_timeline_properties()  # sometimes returns None, at least with apple music app
+        self.last_timeline = session.get_timeline_properties()
         self.last_update_call = datetime.utcnow()
         self.playtime_since_last_update = NOTIME
         self.update_timeline()
@@ -133,10 +135,14 @@ class MediaWidget(_MediaFramework):
         task = schedule(self.get_metadata())
 
     async def get_metadata(self):
+        self.setUpdatesEnabled(False)  # usually called multiple times for a single change, so disable updates till it's done
         metadata = await self.session.try_get_media_properties_async()
+        print(metadata.title, '... albumart?', metadata.thumbnail is not None)
         self.update_info(metadata.title, metadata.artist)
         thumb = metadata.thumbnail
-        if thumb is None:
+        if thumb is None and self.albumart is None:
+            self.imglabel.setPixmap(QPixmap())
+        elif thumb is None:
             self.imglabel.hide()
         else:
             self.albumart = await read_thumb_stream(thumb)
@@ -145,20 +151,24 @@ class MediaWidget(_MediaFramework):
                 return
             self.imglabel.setPixmap(self.albumart)
             if self.imglabel.isHidden(): self.imglabel.show()
+        self._timer.singleShot(100, self._handle_repaint)
 
-    def do_next(self):
+    def _handle_repaint(self):
+        if not self.updatesEnabled(): self.setUpdatesEnabled(True)
+
+    def do_next(self, *args):
         """
         Request the next song.
         """
         if self.controls.is_next_enabled: task = schedule(winrt_to_async(self.session.try_skip_next_async))
 
-    def do_prev(self):
+    def do_prev(self, *args):
         """
         Request the previous song.
         """
         if self.controls.is_previous_enabled: task = schedule(winrt_to_async(self.session.try_skip_previous_async))
 
-    def do_playpause(self):
+    def do_playpause(self, *args):
         """
         Request to start playing if paused, or to pause if playing.
         """
