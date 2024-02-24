@@ -3,9 +3,13 @@ import pywidgets
 from pywidgets.JITstrings import JITstring, PyCmd
 from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmds, cur_OS, numbers_only_fn, \
     bytes2human, disk_cmds, temp_cmds, net_cmds
+try:
+    from pywidgets.sample_web_data import web_cmds
+except ImportError:  # web commands are optional, if requests isn't installed this should fail
+    web_cmds = None
 
 background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background. None for no bg
-window = pywidgets.Window(background_color=background_color, use_async=(cur_OS == 'Windows'), shadow_radius=5)
+window = pywidgets.Window(background_color=background_color, use_async=(cur_OS == 'Windows'), shadow_radius=0)
 
 window.add_widget(pywidgets.HrWidget(window))
 window.add_widget(pywidgets.TextWidget(window, f"{system_strings['system name']} - {system_strings['distro']}<br/>" +
@@ -50,6 +54,7 @@ window.add_widgets(
                            PyCmd(net_cmds['current down (bytes)'], postformat_fn=lambda x: x / update_interval),
                            yrange=yrange, ylabel_str_fn=bytes2human, update_interval=round(update_interval*1000))])
 
+
 if nvidia_cmds['usable?']():  # if a nvidia gpu and nvidia-smi are installed - for amd/intel/integrated gpus, skips this widget
     text = [['Temp: {}C', 'Fan Speed: {}'], ['Clock speed:', '{} / {}'], ['Power:', '{} / {}']]
     vals = PyCmd(nvidia_cmds['query'],
@@ -74,6 +79,19 @@ try:  # the keys of temp_cmds accessed here will usually need to be changed - if
     window.add_widgets([pywidgets.HrWidget(window), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
 except KeyError:
     print("Invalid devices in temp_cmds - temperature widgets won't be added. Possible devices:", list(temp_cmds.keys()))
+
+
+def fmt_weather():
+    weather = web_cmds['weather cmds']['current weather']()
+    if weather is None: return "", None
+    desc, img = web_cmds['weather cmds']['get icon'](weather['weathercode'], weather['is_day'] == 1)
+    text = f"<b>{desc}</b><br/>Currently in {web_cmds['ip cmds']['city']} it's " + \
+           f"{weather['temperature']}\N{DEGREE SIGN}C with a wind speed of {weather['windspeed']} km/h.<br/>"
+    return text, img
+
+
+if web_cmds: window.add_widget(pywidgets.ImageWithTextWidget(window, text_and_img=fmt_weather, img_size=None,
+                                                             update_interval=1000*60*10))  # update every 10min
 
 window.finalize()
 pywidgets.start()
