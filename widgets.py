@@ -29,7 +29,7 @@ class Window(QtWidgets.QMainWindow):
     def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
                  background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
                  set_size: Callable[[QtWidgets.QMainWindow, QRect], None] = None, use_async: bool = False,
-                 shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list[str] = []):
+                 shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list[str] = None):
         """
         The main window containing all your pywidgets. After instantiating one of these,
         call its finish_init() method with a list of the pywidgets you want in the window to complete the setup.
@@ -55,7 +55,7 @@ class Window(QtWidgets.QMainWindow):
 
         # get (or start) application and initialize window
         global _app
-        if _app is None: _app = QtWidgets.QApplication(application_flags)  # start application if it's not running
+        if _app is None: _app = QtWidgets.QApplication([] if not application_flags else application_flags)  # start application if it's not running
         super().__init__() if window_flags is None else super().__init__(flags=window_flags)
 
         if use_async:  # set up the loop to be assigned as Qt's first task, so other widgets can reference it
@@ -101,11 +101,11 @@ class Window(QtWidgets.QMainWindow):
         _app.setPalette(palette)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
 
-        if background_color is not None: self.main_widget.setStyleSheet('#main_widget {background-color: ' +  # '#main_widget {background-color; '
+        if background_color is not None: self.main_widget.setStyleSheet('#main_widget {background-color: ' +
                                                                         'rgba({},{},{},{})'.format(*background_color) +
                                                                         ';}')
 
-        if shadow_radius != 0:
+        if shadow_radius:  # shadow effect burns in on plotwidget static elements
             shadow = QtWidgets.QGraphicsDropShadowEffect(self)
             shadow.setColor(self.palette().shadow().color())
             shadow.setOffset(0)
@@ -623,7 +623,6 @@ class SvgIcon(QtWidgets.QLabel):
         super().__init__(parent)
         self.svg = data
         self.svg_renderer = QSvgRenderer(data)
-        # self.setMinimumSize(*min_size)
         self.min_size = QSize(*min_size)
         self.hover = False
         self.hover_changed = True
@@ -635,7 +634,6 @@ class SvgIcon(QtWidgets.QLabel):
         self.setSizePolicy(pol)
 
     def sizeHint(self): return self.min_size
-
 
     def resizeEvent(self, event: QResizeEvent = None):
         if self.hover_changed:
@@ -667,7 +665,6 @@ class SvgIcon(QtWidgets.QLabel):
         self.svg = data
         self.hover_changed = True
         self.resizeEvent()
-
 
 
 class _MediaListFramework(QWidget):
@@ -727,18 +724,13 @@ class _MediaFramework(QWidget):
         'backward': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M9.57909 4.83828C10.5644 4.07194 12 4.77409 12 6.02231V12V17.9777C12 19.2259 10.5644 19.928 9.57909 19.1617L1.38606 12.7893C1.14247 12.5999 1 12.3086 1 12C1 11.6914 1.14247 11.4001 1.38606 11.2106L9.57909 4.83828Z"/><path d="M12 12C12 12.3086 12.1425 12.5999 12.3861 12.7893L20.5791 19.1617C21.5644 19.928 23 19.2259 23 17.9777V6.02231C23 4.77409 21.5644 4.07194 20.5791 4.83828L12.3861 11.2106C12.1425 11.4001 12 11.6914 12 12Z"/></svg>'
     }
 
-    def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None, butsize: int = None,
-                 primary_color: str | QColor = None, secondary_color: str | QColor = None):
+    def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None, butsize: int = None):
         """
         A skeleton of a MediaWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the MediaListWidget controlling it.
         :param playername: the name of the media player this widget handles.
         :param imgsize: the size of the album art in pixels.
         :param butsize: the size of the media control buttons in pixels.
-        :param primary_color: the color to use for most of the widget. Accepts a QColor or CSS color strings. Leave as None to use
-        the parent widget's default color.
-        :param secondary_color: the color to use for buttons when the mouse is hovering over them, and for the progress bar.
-        Accepts a QColor or CSS color strings.
         """
         super().__init__(parent)
         self.albumart = None
@@ -750,8 +742,6 @@ class _MediaFramework(QWidget):
         self.displaytext = ""
         self.playing = False
         self.has_progress = True
-        if primary_color is None: primary_color = self.palette().window().color()
-        if secondary_color is None: secondary_color = self.palette().light().color()
 
         self.infolabel = TextWidget(self, alignment="Left")
         self.infolabel.setScaledContents(True)
@@ -776,14 +766,13 @@ class _MediaFramework(QWidget):
 
         self.buttons = []  # swap back to old and test if the svgs are the problem here
         for state, action in zip(('backward', 'play', 'forward'), (self.do_prev, self.do_playpause, self.do_next)):
-            but = SvgIcon(self, self.media_icons[state])
+            but = QtWidgets.QPushButton(self)#SvgIcon(self, self.media_icons[state])
             but.mousePressEvent = action
             but.setFixedSize(butsize, butsize)
             self.buttons.append(but)
             self.ctrllayout.addWidget(but)
-            self.ctrllayout.setStretchFactor(but, 1)
 
-        self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5), bgcol=primary_color, barcol=secondary_color)
+        self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5))
         pol = self.pbar.sizePolicy()
         pol.setRetainSizeWhenHidden(True)
         self.pbar.setSizePolicy(pol)
@@ -804,7 +793,7 @@ class _MediaFramework(QWidget):
         """
         Sets the icon on the play/pause button depending on the value of self.playing
         """
-        self.buttons[1].replace_svg(self.media_icons['pause' if self.playing else 'play'])
+        #self.buttons[1].replace_svg(self.media_icons['pause' if self.playing else 'play'])
         self.update()
 
     def do_next(self):
