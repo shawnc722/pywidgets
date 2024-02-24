@@ -1,10 +1,8 @@
 from typing import Callable, Sequence
 from PyQt6 import QtWidgets
-from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, QRectF, pyqtSlot, QSize
-from PyQt6.QtGui import QPainter, QPen, QColor, QPainterPath, QScreen, QResizeEvent, QPalette, QAction, QPixmap, \
-    QPainterPath, QRegion
+from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot, QSize
+from PyQt6.QtGui import QPainter, QPen, QColor, QScreen, QResizeEvent, QPalette, QAction, QPixmap, QPainterPath
 from PyQt6.QtSvg import QSvgRenderer
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
@@ -757,6 +755,8 @@ class _MediaFramework(QWidget):
 
         self.infolabel = TextWidget(self, alignment="Left")
         self.infolabel.setScaledContents(True)
+        pol = self.infolabel.sizePolicy().Policy
+        self.infolabel.setSizePolicy(pol.Expanding, pol.Preferred)
         self.playernamelabel = TextWidget(self, alignment="Left")
         self.playernamelabel.setScaledContents(True)
         self.layout = QtWidgets.QHBoxLayout()
@@ -774,16 +774,14 @@ class _MediaFramework(QWidget):
 
         self.ctrllayout = QtWidgets.QHBoxLayout()
 
-        self.buttons = []
-        self.ctrllayout.addStretch(1)
+        self.buttons = []  # swap back to old and test if the svgs are the problem here
         for state, action in zip(('backward', 'play', 'forward'), (self.do_prev, self.do_playpause, self.do_next)):
             but = SvgIcon(self, self.media_icons[state])
             but.mousePressEvent = action
-            #but.setFixedSize(butsize, butsize)
+            but.setFixedSize(butsize, butsize)
             self.buttons.append(but)
             self.ctrllayout.addWidget(but)
             self.ctrllayout.setStretchFactor(but, 1)
-        self.ctrllayout.addStretch(1)
 
         self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5), bgcol=primary_color, barcol=secondary_color)
         pol = self.pbar.sizePolicy()

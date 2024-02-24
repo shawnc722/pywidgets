@@ -1,4 +1,3 @@
-from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QPixmap
 from datetime import datetime, timedelta
 
@@ -9,12 +8,12 @@ from asyncio import sleep
 from winsdk.windows.media.control import (
     GlobalSystemMediaTransportControlsSessionManager as SessionManager,
     GlobalSystemMediaTransportControlsSession as Session,
-    GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus, MediaPropertiesChangedEventArgs
+    GlobalSystemMediaTransportControlsSessionPlaybackStatus as PlaybackStatus
 )
 
 from winsdk.windows.ui.notifications.management import UserNotificationListener, UserNotificationListenerAccessStatus
 from winsdk.windows.ui.notifications import UserNotificationChangedEventArgs as NotifArgs, \
-    UserNotificationChangedKind as NotifChangedKind, NotificationKinds
+    UserNotificationChangedKind as NotifChangedKind
 
 from winsdk.windows.storage.streams import DataReader, IRandomAccessStreamReference
 from winsdk.windows.foundation import AsyncStatus
@@ -98,7 +97,6 @@ class MediaWidget(_MediaFramework):
         self.last_update_call = NOTIME
         self.playtime_since_last_update = NOTIME
         self.last_timeline = None
-        self._timer = QTimer()
 
         self.playback_changed(self.session)
         self.timeline_changed(self.session)
@@ -106,6 +104,7 @@ class MediaWidget(_MediaFramework):
 
     def playback_changed(self, session: Session, args=None):
         info = session.get_playback_info()
+        if not info: return
         if info.playback_status == PlaybackStatus.CLOSED:
             self.handle_removed()
         elif info.playback_status == PlaybackStatus.PLAYING:
@@ -135,15 +134,13 @@ class MediaWidget(_MediaFramework):
         task = schedule(self.get_metadata())
 
     async def get_metadata(self):
-        self.setUpdatesEnabled(False)  # usually called multiple times for a single change, so disable updates till it's done
         metadata = await self.session.try_get_media_properties_async()
-        print(metadata.title, '... albumart?', metadata.thumbnail is not None)
         self.update_info(metadata.title, metadata.artist)
         thumb = metadata.thumbnail
-        if thumb is None and self.albumart is None:
-            self.imglabel.setPixmap(QPixmap())
-        elif thumb is None:
+        if thumb is None and not self.albumart:
             self.imglabel.hide()
+        elif thumb is None:
+            pass  # leave it alone for now, another update is on the way w/ thumb (they come in groups of 2-3 for most apps)
         else:
             self.albumart = await read_thumb_stream(thumb)
             if self.albumart is None:
@@ -151,10 +148,6 @@ class MediaWidget(_MediaFramework):
                 return
             self.imglabel.setPixmap(self.albumart)
             if self.imglabel.isHidden(): self.imglabel.show()
-        self._timer.singleShot(100, self._handle_repaint)
-
-    def _handle_repaint(self):
-        if not self.updatesEnabled(): self.setUpdatesEnabled(True)
 
     def do_next(self, *args):
         """
