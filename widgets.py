@@ -2,7 +2,7 @@ from typing import Callable, Sequence
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot, QSize
-from PyQt6.QtGui import QPainter, QPen, QColor, QScreen, QResizeEvent, QPalette, QAction, QPixmap, QPainterPath
+from PyQt6.QtGui import QPainter, QPen, QColor, QScreen, QResizeEvent, QPalette, QAction, QPixmap, QPainterPath, QIcon
 from PyQt6.QtSvg import QSvgRenderer
 from pywidgets.JITstrings import JITstring, PyCmd
 import pyqtgraph as pg
@@ -610,23 +610,35 @@ class ImageWithTextWidget(QWidget):
         pixmap.loadFromData(img)
         self.img_label.setPixmap(pixmap)
 
-    '''def resizeEvent(self, a0: QResizeEvent):
-        super().resizeEvent(a0)
-        img_size = [round(self.screen().geometry().height()/10)]*2 if self.img_size == (-1, -1) else self.img_size
-        if not img_size is None:
-            self.img_label.setFixedSize(*img_size)'''
+
+class ColorSvg:
+    def __init__(self, data: str, maintain_aspect=True):
+        self.svg = data
+        self.svg_renderer = QSvgRenderer()
+        self.maintain_aspect = maintain_aspect
+
+    def render(self, size: QSize) -> QPixmap:
+        pixmap = QPixmap(size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        self.svg_renderer.render(painter)
+        painter.end()
+        return pixmap
+
+    def recolor(self, color: QColor):
+        self.svg_renderer.load(self.svg.replace('currentColor', 'rgb({},{},{})'.format(*color.getRgb()[:3])).encode())
+        if self.maintain_aspect:
+            self.svg_renderer.setAspectRatioMode(self.svg_renderer.aspectRatioMode().KeepAspectRatio)
 
 
 class SvgIcon(QtWidgets.QLabel):
     def __init__(self, parent: QWidget, data: str, min_size=(8, 8), maintain_aspect=True):
         """An icon using SVG syntax that respects the svg currentColor attribute."""
         super().__init__(parent)
-        self.svg = data
-        self.svg_renderer = QSvgRenderer(data)
+        self.svg = ColorSvg(data, maintain_aspect)
         self.min_size = QSize(*min_size)
         self.hover = False
         self.hover_changed = True
-        self.maintain_aspect = maintain_aspect
         self.setScaledContents(False)
         pol = self.sizePolicy()
         pol.setHorizontalPolicy(pol.Policy.MinimumExpanding)
@@ -637,16 +649,9 @@ class SvgIcon(QtWidgets.QLabel):
 
     def resizeEvent(self, event: QResizeEvent = None):
         if self.hover_changed:
-            self.svg_renderer.load(self.recolor(getattr(self.palette(), 'light' if self.hover else 'window')().color()).encode())
+            self.svg.recolor(getattr(self.palette(), 'light' if self.hover else 'window')().color())
             self.hover_changed = False
-            if self.maintain_aspect:
-                self.svg_renderer.setAspectRatioMode(self.svg_renderer.aspectRatioMode().KeepAspectRatio)
-        pixmap = QPixmap(self.size())
-        pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(pixmap)
-        self.svg_renderer.render(painter)
-        painter.end()
-        self.setPixmap(pixmap)
+        self.setPixmap(self.svg.render(self.size()))
 
     def enterEvent(self, event):
         self.hover = True
@@ -658,11 +663,48 @@ class SvgIcon(QtWidgets.QLabel):
         self.hover_changed = True
         self.resizeEvent()
 
-    def recolor(self, color: QColor):
-        return self.svg.replace('currentColor', 'rgb({},{},{})'.format(*color.getRgb()[:3]))
+    def replace_svg(self, data: str):
+        self.svg.svg = data
+        self.hover_changed = True
+        self.resizeEvent()
+
+
+class SvgButton(QtWidgets.QPushButton):
+    def __init__(self, parent: QWidget, data: str, min_size=(8, 8), maintain_aspect=True):
+        super().__init__(parent)
+        self.svg = ColorSvg(data, maintain_aspect)
+        self.setFlat(True)
+        self.min_size = QSize(*min_size)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.hover = False
+        self.hover_changed = True
+        pol = self.sizePolicy()
+        pol.setHorizontalPolicy(pol.Policy.MinimumExpanding)
+        pol.setVerticalPolicy(pol.Policy.MinimumExpanding)
+        self.setSizePolicy(pol)
+
+    def sizeHint(self): return self.min_size
+
+    def resizeEvent(self, event: QResizeEvent = None):
+        if self.hover_changed:
+            self.svg.recolor(getattr(self.palette(), 'light' if self.hover else 'window')().color())
+            self.hover_changed = False
+        icon = QIcon(self.svg.render(self.size()))
+        self.setIcon(icon)
+        self.setIconSize(self.size())
+
+    def enterEvent(self, event):
+        self.hover = True
+        self.hover_changed = True
+        self.resizeEvent()
+
+    def leaveEvent(self, a0):
+        self.hover = False
+        self.hover_changed = True
+        self.resizeEvent()
 
     def replace_svg(self, data: str):
-        self.svg = data
+        self.svg.svg = data
         self.hover_changed = True
         self.resizeEvent()
 
@@ -764,11 +806,11 @@ class _MediaFramework(QWidget):
 
         self.ctrllayout = QtWidgets.QHBoxLayout()
 
-        self.buttons = []  # swap back to old and test if the svgs are the problem here
+        self.buttons = []
         for state, action in zip(('backward', 'play', 'forward'), (self.do_prev, self.do_playpause, self.do_next)):
-            but = QtWidgets.QPushButton(self)#SvgIcon(self, self.media_icons[state])
-            but.mousePressEvent = action
+            but = SvgButton(self, self.media_icons[state])  # mousePressEvent listener causes the canvas not to clear, somwhow
             but.setFixedSize(butsize, butsize)
+            but.clicked.connect(action)
             self.buttons.append(but)
             self.ctrllayout.addWidget(but)
 
@@ -793,7 +835,7 @@ class _MediaFramework(QWidget):
         """
         Sets the icon on the play/pause button depending on the value of self.playing
         """
-        #self.buttons[1].replace_svg(self.media_icons['pause' if self.playing else 'play'])
+        self.buttons[1].replace_svg(self.media_icons['pause' if self.playing else 'play'])
         self.update()
 
     def do_next(self):

@@ -1,4 +1,3 @@
-from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QPixmap
 from datetime import datetime, timedelta
 
@@ -192,10 +191,6 @@ class MediaWidget(_MediaFramework):
         self.session.remove_media_properties_changed(self.metadata_token)
         self.session.remove_playback_info_changed(self.playback_token)
         self.session.remove_timeline_properties_changed(self.timeline_token)
-
-
-def queue(fn, time):
-    QTimer().singleShot(time, fn)
 
 
 class NotificationWidget(pywidgets.NotificationWidgetFramework):
