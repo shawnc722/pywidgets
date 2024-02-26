@@ -387,26 +387,28 @@ class ProgressArcsWidget(QWidget):
 
 
 class ProgressBarWidget(QWidget):
-    def __init__(self, parent: QWidget, perc: Callable[[], float] = None, height: int = None,
+    def __init__(self, parent: QWidget, perc: Callable[[], float] = None, max_height: int = None,
                  update_interval: int = None, barcol: QColor = None, bgcol: QColor = None, squareness: float = 3):
         """A linear progress bar that can be manually updated or given a command and an update interval for automatic updates.
         :param parent: the parent widget of this widget, usually a sub-widget of the main window.
         :param perc: a function/command that produces a float between 0 and 1. If given, make sure to set update_interval or call set_progress() manually.
-        :param height: the height of the widget in pixels. If none, the height is a tenth of the parent widget's.
+        :param max_height: the max height of the widget in pixels. If none, set to one tenth of the parent widget's height.
         :param update_interval: the time in ms between calls to the perc function. Only relevant if perc is given too.
         :param barcol: the color of the bar as a Qt color.
         :param bgcol: the color of the unfilled portion of the bar as a Qt color. Leave as None to use the page default.
         :param squareness: how square the corners should be. Radius of curvature is height divided by this.
         """
         super().__init__(parent)
-        if height is None: height = round(parent.height() / 10)
-        self.setFixedHeight(height)
+        if max_height is None: max_height = round(parent.height() / 10)
+        self.setMaximumHeight(max_height)
+        self.setMinimumHeight(3)  # lowest pixel count that can still be rounded
         self.barcol = QColor(barcol) if barcol else self.palette().light().color()
         self.bgcol = QColor(bgcol) if bgcol is not None else self.palette().window().color()
         self._progress: float = 0
         self.squareness = squareness
         pol = self.sizePolicy()
         pol.setHorizontalStretch(255)  # max stretch
+        pol.setVerticalPolicy(pol.Policy.MinimumExpanding)
         self.setSizePolicy(pol)
         if perc is not None: self.perc = perc
         if update_interval is not None:
@@ -675,7 +677,7 @@ class SvgIcon(QtWidgets.QLabel):
 
 
 class SvgButton(QtWidgets.QPushButton):
-    def __init__(self, parent: QWidget, data: str, min_size=(1, 1), maintain_aspect=True):
+    def __init__(self, parent: QWidget, data: str, min_size=(16, 16), maintain_aspect=True):
         super().__init__(parent)
         self.svg = ColorSvg(data, maintain_aspect)
         self.setFlat(True)
@@ -815,7 +817,8 @@ class _MediaFramework(QWidget):
             self.buttons.append(but)
             self.ctrllayout.addWidget(but)
 
-        self.pbar = ProgressBarWidget(self, height=int(self.height()//2.5))
+
+        self.pbar = ProgressBarWidget(self, max_height=int(self.height() // 2.5))
         pol = self.pbar.sizePolicy()
         pol.setRetainSizeWhenHidden(True)
         self.pbar.setSizePolicy(pol)
@@ -823,6 +826,8 @@ class _MediaFramework(QWidget):
         self.info_layout.addLayout(self.ctrllayout)
         self.info_layout.addWidget(self.pbar)
         self.layout.addLayout(self.info_layout)
+        self.info_layout.setStretchFactor(self.ctrllayout, 5)
+        self.info_layout.setStretchFactor(self.pbar, 1)
 
         placeholder = QWidget()  # to make the spacing equal - otherwise have to set spacing to 0 and adjust content margins
         placeholder.setMaximumSize(0, 0)
