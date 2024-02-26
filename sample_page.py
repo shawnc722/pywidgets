@@ -9,7 +9,7 @@ except ImportError:  # web commands are optional, if requests isn't installed th
     web_cmds = None
 
 background_color = None  # use RGBA tuple to specify, eg (0,0,0,128) for half opacity black background. None for no bg
-window = pywidgets.Window(background_color=background_color, use_async=(cur_OS == 'Windows'), shadow_radius=0)
+window = pywidgets.Window(background_color=background_color, use_async=(cur_OS == 'Windows'), shadow_radius=8)
 
 window.add_widget(pywidgets.HrWidget(window))
 window.add_widget(pywidgets.TextWidget(window, f"{system_strings['system name']} - {system_strings['distro']}<br/>" +

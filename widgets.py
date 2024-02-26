@@ -106,12 +106,12 @@ class Window(QtWidgets.QMainWindow):
                                                                         ';}')
 
         if shadow_radius:  # shadow effect burns in on plotwidget static elements
-            shadow = QtWidgets.QGraphicsDropShadowEffect(self)
+            sw = self.main_widget
+            shadow = QtWidgets.QGraphicsDropShadowEffect(sw)
             shadow.setColor(self.palette().shadow().color())
             shadow.setOffset(0)
             shadow.setBlurRadius(shadow_radius)
-            #self.main_widget.setGraphicsEffect(shadow)
-            self.setGraphicsEffect(shadow)  # inheritance works better if it's on main_widget, but that lags(?)
+            sw.setGraphicsEffect(shadow)
 
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Expanding)
 
@@ -207,6 +207,11 @@ class Window(QtWidgets.QMainWindow):
         if spacing is not None: self.layout.setSpacing(spacing)
         self.screen().geometryChanged.connect(self.handle_resize)
         self.show()
+
+    @classmethod
+    def start(cls):
+        """Equivalent to pywidgets.start() - here for convenience."""
+        start()
 
 
 class ArcsWidget(QWidget):
@@ -670,7 +675,7 @@ class SvgIcon(QtWidgets.QLabel):
 
 
 class SvgButton(QtWidgets.QPushButton):
-    def __init__(self, parent: QWidget, data: str, min_size=(8, 8), maintain_aspect=True):
+    def __init__(self, parent: QWidget, data: str, min_size=(1, 1), maintain_aspect=True):
         super().__init__(parent)
         self.svg = ColorSvg(data, maintain_aspect)
         self.setFlat(True)
@@ -710,16 +715,14 @@ class SvgButton(QtWidgets.QPushButton):
 
 
 class _MediaListFramework(QWidget):
-    def __init__(self, parent: QWidget, imgsize: int = None, butsize: int = None, update_interval: int | None = 250):
+    def __init__(self, parent: QWidget, imgsize: int = None, update_interval: int | None = 250):
         """
         A skeleton of a MediaListWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the main window.
         :param imgsize: the size of the album art image in pixels.
-        :param butsize: the size of the media control buttons in pixels.
         :param update_interval: the time in ms between updates for progress bars. Set to None to disable updates.
         """
         super().__init__(parent)
-        self.butsize = butsize
         self.imgsize = imgsize
         self.update_interval = update_interval
         self.layout = QtWidgets.QVBoxLayout()
@@ -760,26 +763,24 @@ class _MediaListFramework(QWidget):
 
 class _MediaFramework(QWidget):
     media_icons = {
-        'play': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7.50632 3.14928C6.1753 2.29363 4.4248 3.24931 4.4248 4.83164V19.1683C4.4248 20.7506 6.1753 21.7063 7.50632 20.8507L18.6571 13.6823C19.8817 12.8951 19.8817 11.1049 18.6571 10.3176L7.50632 3.14928Z"/></svg>',
-        'pause': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M6 3C4.89543 3 4 3.89543 4 5V19C4 20.1046 4.89543 21 6 21H9C10.1046 21 11 20.1046 11 19V5C11 3.89543 10.1046 3 9 3H6Z"/><path d="M15 3C13.8954 3 13 3.89543 13 5V19C13 20.1046 13.8954 21 15 21H18C19.1046 21 20 20.1046 20 19V5C20 3.89543 19.1046 3 18 3H15Z"/></svg>',
-        'forward': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M3.42091 4.83828C2.43562 4.07194 1 4.77409 1 6.02231V17.9777C1 19.2259 2.43562 19.928 3.42091 19.1617L11.6139 12.7893C11.8575 12.5999 12 12.3086 12 12V17.9777C12 19.2259 13.4356 19.928 14.4209 19.1617L22.6139 12.7893C22.8575 12.5999 23 12.3086 23 12C23 11.6914 22.8575 11.4001 22.6139 11.2106L14.4209 4.83828C13.4356 4.07194 12 4.77409 12 6.02231V12C12 11.6914 11.8575 11.4001 11.6139 11.2106L3.42091 4.83828Z"/></svg>',
-        'backward': '<svg width="24px" height="24px" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M9.57909 4.83828C10.5644 4.07194 12 4.77409 12 6.02231V12V17.9777C12 19.2259 10.5644 19.928 9.57909 19.1617L1.38606 12.7893C1.14247 12.5999 1 12.3086 1 12C1 11.6914 1.14247 11.4001 1.38606 11.2106L9.57909 4.83828Z"/><path d="M12 12C12 12.3086 12.1425 12.5999 12.3861 12.7893L20.5791 19.1617C21.5644 19.928 23 19.2259 23 17.9777V6.02231C23 4.77409 21.5644 4.07194 20.5791 4.83828L12.3861 11.2106C12.1425 11.4001 12 11.6914 12 12Z"/></svg>'
+        'play': '<svg width="24" height="19" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="m7.50632,0.64931c-1.33102,-0.85565 -3.08152,0.10003 -3.08152,1.68236l0,14.33666c0,1.5823 1.7505,2.538 3.08152,1.6824l11.15078,-7.1684c1.2246,-0.7872 1.2246,-2.5774 0,-3.3647l-11.15078,-7.16832z"/></svg>',
+        'pause': '<svg width="24" height="19" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="m6,0.5c-1.10457,0 -2,0.89543 -2,2l0,14c0,1.1046 0.89543,2 2,2l3,0c1.1046,0 2,-0.8954 2,-2l0,-14c0,-1.10457 -0.8954,-2 -2,-2l-3,0z"/><path d="m15,0.5c-1.1046,0 -2,0.89543 -2,2l0,14c0,1.1046 0.8954,2 2,2l3,0c1.1046,0 2,-0.8954 2,-2l0,-14c0,-1.10457 -0.8954,-2 -2,-2l-3,0z"/></svg>',
+        'forward': '<svg width="24" height="19" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="m3.42091,2.3383c-0.98529,-0.76634 -2.42091,-0.06419 -2.42091,1.18403l0,11.95539c0,1.2482 1.43562,1.9503 2.42091,1.184l8.19299,-6.3724c0.2436,-0.1894 0.3861,-0.4807 0.3861,-0.7893l0,5.9777c0,1.2482 1.4356,1.9503 2.4209,1.184l8.193,-6.3724c0.2436,-0.1894 0.3861,-0.4807 0.3861,-0.7893c0,-0.3086 -0.1425,-0.5999 -0.3861,-0.7894l-8.193,-6.37232c-0.9853,-0.76634 -2.4209,-0.06419 -2.4209,1.18403l0,5.97769c0,-0.3086 -0.1425,-0.5999 -0.3861,-0.7894l-8.19299,-6.37232z"/></svg>',
+        'backward': '<svg width="24" height="19" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><path d="m9.57909,2.3383c0.98531,-0.76634 2.42091,-0.06419 2.42091,1.18403l0,5.97769l0,5.9777c0,1.2482 -1.4356,1.9503 -2.42091,1.184l-8.19303,-6.3724c-0.24359,-0.1894 -0.38606,-0.4807 -0.38606,-0.7893c0,-0.3086 0.14247,-0.5999 0.38606,-0.7894l8.19303,-6.37232z"/><path d="m12,9.50002c0,0.3086 0.1425,0.5999 0.3861,0.7893l8.193,6.3724c0.9853,0.7663 2.4209,0.0642 2.4209,-1.184l0,-11.95539c0,-1.24822 -1.4356,-1.95037 -2.4209,-1.18403l-8.193,6.37232c-0.2436,0.1895 -0.3861,0.4808 -0.3861,0.7894z"/></svg>'
     }
 
-    def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None, butsize: int = None):
+    def __init__(self, parent: QWidget, playername: str = None, imgsize: int = None):
         """
         A skeleton of a MediaWidget for platform-specific subclasses to inherit from. Does nothing on its own.
         :param parent: the parent widget of this widget, usually the MediaListWidget controlling it.
         :param playername: the name of the media player this widget handles.
         :param imgsize: the size of the album art in pixels.
-        :param butsize: the size of the media control buttons in pixels.
         """
         super().__init__(parent)
         self.albumart = None
         if imgsize is None: imgsize = round(parent.screen().geometry().height()/10)
         self.imgsize = imgsize
-        if butsize is None: butsize = round(imgsize/4)
-        self.butsize = butsize
+        max_button_height = round(imgsize/4)
         self.playername = playername
         self.displaytext = ""
         self.playing = False
@@ -808,8 +809,8 @@ class _MediaFramework(QWidget):
 
         self.buttons = []
         for state, action in zip(('backward', 'play', 'forward'), (self.do_prev, self.do_playpause, self.do_next)):
-            but = SvgButton(self, self.media_icons[state])  # mousePressEvent listener causes the canvas not to clear, somwhow
-            but.setFixedSize(butsize, butsize)
+            but = SvgButton(self, self.media_icons[state])
+            but.setMaximumHeight(max_button_height)
             but.clicked.connect(action)
             self.buttons.append(but)
             self.ctrllayout.addWidget(but)
