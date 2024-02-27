@@ -28,7 +28,7 @@ window.start()
 
 if __name__ == '__main__':
     cwd = getcwd()
-    filename = 'pywidgets-page.py'
+    filename = 'page.py'
     destination = f'{cwd}/{filename}'
     if filename in listdir(cwd):
         print(filename, 'already exists in', cwd)

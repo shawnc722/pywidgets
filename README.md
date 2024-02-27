@@ -83,6 +83,8 @@ If you have a data source that isn't in `sample_data`, all you need to do is mak
 
 With a data source chosen, the next step is to pick (or create) a widget to display it. Example images and further detail for each widget is available in the [widgets](https://github.com/shawnc722/pywidgets/wiki/Widgets) page.
 
+A minimal `page.py` file can be generated from the command line in the current working directory using `python -m pywidgets.make_page_stub` to streamline custom page creation.
+
 ## Reference
 
 * [widgets](https://github.com/shawnc722/pywidgets/wiki/Widgets) - Sample images and documentation for individual widgets  
