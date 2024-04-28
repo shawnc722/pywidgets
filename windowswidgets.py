@@ -49,13 +49,17 @@ class MediaListWidget(_MediaListFramework):
         )
         self.sessions_changed(self.manager)
 
-    def sessions_changed(self, manager: SessionManager = None, args=None):
+    def sessions_changed(self, manager: SessionManager = None, args=None): # todo: UpdateLayeredWindowIndirect fails w wrong params immediately after this. must be the update() calls?
+        print('beginning sessions changed')
         current = {s.source_app_user_model_id: s for s in manager.get_sessions()}
         new = [session for session in current.keys() if session not in self.mediawidgets]
         expired = [session for session in self.mediawidgets if session not in current]
 
+        print('sessions changed adding', new)
         for session in new: self.new_session(current[session])
+        print('sessions changed removing', len(expired), 'sessions:', expired)
         for session in expired: self.remove_widget(session)
+        print('done changing sessions')
 
     def new_session(self, session: Session):
         id = session.source_app_user_model_id
@@ -64,6 +68,7 @@ class MediaListWidget(_MediaListFramework):
             # get logo to show here too? it's display_info.get_logo
         except:  # this'll fail if it's not a UWP app but if it fails for any reason just use the appID
             name = id.replace('.exe', '').title()
+        print('adding new session',name)
         self.add_widget(MediaWidget(self, session=session, playername=name), id)
 
 
@@ -106,7 +111,8 @@ class MediaWidget(_MediaFramework):
         info = session.get_playback_info()
         if not info: return
         if info.playback_status == PlaybackStatus.CLOSED:
-            self.handle_removed()
+            pass
+            # self.handle_removed() # this calls removal code twice, since it's handled by parent MediaList anyway
         elif info.playback_status == PlaybackStatus.PLAYING:
             self.played()
         elif info.playback_status == PlaybackStatus.PAUSED:
@@ -188,9 +194,11 @@ class MediaWidget(_MediaFramework):
         Called when this widget has been removed from its parent MediaListWidget. Should handle any cleanup
         this widget requires before deletion.
         """
+        print('removing mediawidget', self.playername) # todo: remove
         self.session.remove_media_properties_changed(self.metadata_token)
         self.session.remove_playback_info_changed(self.playback_token)
         self.session.remove_timeline_properties_changed(self.timeline_token)
+        print('removed all listeners. all removal code is done now')
 
 
 class NotificationWidget(pywidgets.NotificationWidgetFramework):

@@ -68,14 +68,6 @@ try:  # the keys of temp_cmds accessed here will usually need to be changed - if
     tempstr = JITstring(pywidgets.html_table(
         [["CPU temp:", "{}C"], ["NVME temp:", "{}C"], ["Wifi temp:", "{}C"]], "<b>Temperatures</b>"),
         [temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]])
-
-    def f():
-        return temp_cmds["k10temp Tctl current"], temp_cmds["nvme Composite current"], temp_cmds["iwlwifi_1  current"]
-
-    window.add_widgets([pywidgets.HrWidget(window),
-                        pywidgets.GraphWidget(window, "<b>Temperatures</b>", f, lines=3, yrange=(20, 100), update_interval=1000,
-                                              ylabel_str_fn=lambda s: str(round(s)) + u'\N{DEGREE SIGN}C')])
-
     window.add_widgets([pywidgets.HrWidget(window), pywidgets.TextWidget(window, tempstr, update_interval=1000)])
 except KeyError:
     print("Invalid devices in temp_cmds - temperature widgets won't be added. Possible devices:", list(temp_cmds.keys()))

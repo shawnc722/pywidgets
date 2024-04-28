@@ -1,4 +1,4 @@
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Self
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QTimer, QPoint, QRect, pyqtSlot, QSize
@@ -28,7 +28,7 @@ class Window(QtWidgets.QMainWindow):
 
     def __init__(self, font_size_vh: float = 1.0, stylesheet: str = "default", palette: QPalette = None,
                  background_color: tuple[int, int, int, int] = None, maintain_position: str = "bottom",
-                 set_size: Callable[[QtWidgets.QMainWindow, QRect], None] = None, use_async: bool = False,
+                 set_size: Callable[[Self, QRect], None] = None, use_async: bool = False,
                  shadow_radius: float = 3, window_flags: Qt.WindowType = None, application_flags: list[str] = None):
         """
         The main window containing all your pywidgets. After instantiating one of these,
@@ -55,7 +55,8 @@ class Window(QtWidgets.QMainWindow):
 
         # get (or start) application and initialize window
         global _app
-        if _app is None: _app = QtWidgets.QApplication([] if not application_flags else application_flags)  # start application if it's not running
+        if _app is None:  # start application if it's not running
+            _app = QtWidgets.QApplication(["PyWidgets"] if not application_flags else application_flags)
         super().__init__() if window_flags is None else super().__init__(flags=window_flags)
 
         if use_async:  # set up the loop to be assigned as Qt's first task, so other widgets can reference it
@@ -76,15 +77,7 @@ class Window(QtWidgets.QMainWindow):
         self.main_widget.setObjectName("main_widget")
         self.setCentralWidget(self.main_widget)
         self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Preferred, QtWidgets.QSizePolicy.Policy.Maximum)
-        if set_size is None:
-            def set_size(window: Window, dims: QRect) -> None:
-                width = round(dims.width() * 17 / 128)       # a bit wider than 1/8th of the screen. 4K->510px
-                offset = 0                                   # the amount to move the window left, for better visibility
-                window.setFixedWidth(width)
-                window.setMaximumHeight(dims.height())
-                window.move(dims.x() + dims.width() - width - offset, dims.y())
-
-        self.set_size = set_size
+        if set_size is not None: self.set_size = set_size
 
         # setup style of window
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -101,9 +94,8 @@ class Window(QtWidgets.QMainWindow):
         _app.setPalette(palette)
         self.style().polish(self)  # force the stylesheet to be handled now before initializing widgets for proper inheritance
 
-        if background_color is not None: self.main_widget.setStyleSheet('#main_widget {background-color: ' +
-                                                                        'rgba({},{},{},{})'.format(*background_color) +
-                                                                        ';}')
+        if background_color is not None:
+            self.main_widget.setStyleSheet('#main_widget {background-color: rgba(' + ','.join(background_color) + ');}')
 
         if shadow_radius:  # shadow effect burns in on plotwidget static elements
             sw = self.main_widget
@@ -137,6 +129,14 @@ class Window(QtWidgets.QMainWindow):
     def resizeEvent(self, a0: QResizeEvent):
         super().resizeEvent(a0)
         self.handle_resize()
+
+    def set_size(self: Self, dims: QRect) -> None:
+        width = round(dims.width() * 17 / 128)  # a bit wider than 1/8th of the screen. 4K->510px
+        offset = 0  # the amount to move the window left, for better visibility
+        self.setFixedWidth(width)
+        #self.setMaximumHeight(dims.height())  # disabled for now, see next line
+        self.setFixedHeight(dims.height())  # QT doesn't handle resizing on wayland yet, so just take all the height
+        self.move(dims.x() + dims.width() - width - offset, dims.y())
 
     @pyqtSlot()
     def exit_clicked(self, *args):
@@ -187,7 +187,7 @@ class Window(QtWidgets.QMainWindow):
         if newsize != font.pixelSize():
             font.setPixelSize(newsize)
             _app.setFont(font)  # set font on the whole app, so it propagates downward.
-        self.set_size(self, dims)
+        self.set_size(dims)
 
     def finalize(self, layout: QtWidgets.QLayout = None, add_stretch: bool = True, spacing: int = None) -> None:
         """
@@ -744,9 +744,13 @@ class _MediaListFramework(QWidget):
         :param name: the name of the child widget to be removed. Should be the same as what was given to add_widget.
         """
         widget = self.mediawidgets.pop(name)
+        print(' remove widget from layout:')
         self.layout.removeWidget(widget)
+        print(' done')
         widget.handle_removed()
-        self.update()
+        print(' post-removal update')
+        #self.update()
+        print(' done')
 
     def add_widget(self, widget, name: str):
         """
@@ -756,7 +760,8 @@ class _MediaListFramework(QWidget):
         """
         self.mediawidgets[name] = widget
         self.layout.addWidget(widget)
-        self.update()
+        #self.update()
+        print(' done adding widget')
 
     def update_timelines(self):
         for widget in self.mediawidgets.values():
@@ -779,7 +784,6 @@ class _MediaFramework(QWidget):
         :param imgsize: the size of the album art in pixels.
         """
         super().__init__(parent)
-        self.albumart = None
         if imgsize is None: imgsize = round(parent.screen().geometry().height()/10)
         self.imgsize = imgsize
         max_button_height = round(imgsize/4)
@@ -787,6 +791,7 @@ class _MediaFramework(QWidget):
         self.displaytext = ""
         self.playing = False
         self.has_progress = True
+        self.can_raise = False
 
         self.infolabel = TextWidget(self, alignment="Left")
         self.infolabel.setScaledContents(True)
@@ -859,6 +864,16 @@ class _MediaFramework(QWidget):
     def do_playpause(self):
         """
         Request to start playing if paused, or to pause if playing.
+        """
+        raise NotImplementedError
+
+    def mousePressEvent(self, a0):
+        if self.can_raise and a0.button() == Qt.MouseButton.LeftButton: self.raise_player()
+        super().mousePressEvent(a0)
+
+    def raise_player(self):
+        """
+        Request to raise the player to the foreground.
         """
         raise NotImplementedError
 
@@ -989,6 +1004,8 @@ def start() -> None:
     global _app
     if _app is None:
         raise AssertionError("QApplication not found, have you created a Window yet?")
+    if _app.platformName() == 'wayland':
+        print('running on wayland - unable to position window or set flags (stay on top/bottom, no alt-tab display, etc)')
     if not _use_async:
         _app.exec()
     else:
