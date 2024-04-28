@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Sequence, Self
 from PyQt6 import QtWidgets
 from PyQt6.QtWidgets import QWidget
@@ -1004,8 +1005,18 @@ def start() -> None:
     global _app
     if _app is None:
         raise AssertionError("QApplication not found, have you created a Window yet?")
-    if _app.platformName() == 'wayland':
-        print('running on wayland - unable to position window or set flags (stay on top/bottom, no alt-tab display, etc)')
+    if _app.platformName() == 'wayland':  # remove when Qt updates with proper support
+        if os.environ['XDG_SESSION_DESKTOP'] == 'KDE':
+            print("Plasma on wayland detected, running Kwin script to handle flags wayland ignores")
+            from PyQt6.QtDBus import QDBusInterface
+            script = QDBusInterface('org.kde.KWin', '/Scripting', 'org.kde.kwin.Scripting')
+            loaded = script.call('isScriptLoaded', 'pywidgets-fix').arguments()[0]
+            if not loaded:
+                path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fix_wayland_window.js')
+                script.call('loadScript', path, 'pywidgets-fix')
+                script.call('start')
+        else:
+            print('running on wayland - unable to position window or set flags (stay on top/bottom, no alt-tab display, etc)')
     if not _use_async:
         _app.exec()
     else:
