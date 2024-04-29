@@ -1015,7 +1015,6 @@ def start() -> None:
                 path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fix_wayland_window.js')
                 script.call('loadScript', path, 'pywidgets-fix')
                 script.call('start')
-            script.disconnect()
         else:
             print('running on wayland - unable to position window or set flags (stay on top/bottom, no alt-tab display, etc)')
     if not _use_async:
