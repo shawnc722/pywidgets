@@ -813,6 +813,12 @@ class _MediaFramework(QWidget):
         self.info_layout.addWidget(self.infolabel)
         self.info_layout.addWidget(self.playernamelabel)
 
+        def mousePressEvent(a0):
+            if self.can_raise and a0.button() == Qt.MouseButton.LeftButton: self.raise_player()
+            self.mousePressEvent(a0)
+        self.imglabel.mousePressEvent = mousePressEvent
+        self.playernamelabel.mousePressEvent = mousePressEvent
+
         self.ctrllayout = QtWidgets.QHBoxLayout()
 
         self.buttons = []
@@ -867,10 +873,6 @@ class _MediaFramework(QWidget):
         Request to start playing if paused, or to pause if playing.
         """
         raise NotImplementedError
-
-    def mousePressEvent(self, a0):
-        if self.can_raise and a0.button() == Qt.MouseButton.LeftButton: self.raise_player()
-        super().mousePressEvent(a0)
 
     def raise_player(self):
         """
