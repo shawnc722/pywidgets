@@ -1,4 +1,4 @@
-#!/usr/bin/python3.11
+#!/usr/bin/env python
 import pywidgets
 from pywidgets.JITstrings import JITstring, PyCmd
 from pywidgets.sample_data import system_strings, cpu_cmds, mem_cmds, nvidia_cmds, cur_OS, numbers_only_fn, \
@@ -19,7 +19,7 @@ window.add_widget(pywidgets.HrWidget(window))
 if hasattr(pywidgets, "MediaListWidget"):  # currently only Linux and Windows versions written
     window.add_widgets([pywidgets.MediaListWidget(window), pywidgets.HrWidget(window)])
 
-blkstr = PyCmd(lambda: pywidgets.html_table([[p, '{} / {}'] for p in disk_cmds['disks mountpoint']]).format(
+blkstr = PyCmd(lambda: pywidgets.html_table([[disk_cmds['shrink path'](p), '{} / {}'] for p in disk_cmds['disks mountpoint']]).format(
     *[i for l in zip(disk_cmds['disks used'], disk_cmds['disks total']) for i in l]))
 
 window.add_widgets(

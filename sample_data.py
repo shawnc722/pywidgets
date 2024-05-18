@@ -5,6 +5,7 @@ from psutil._common import bytes2human
 from platform import uname, system, version
 from pywidgets.JITstrings import PyCmd, BashCmd, PyCmdWithMem
 from subprocess import CalledProcessError
+from os import path
 
 cur_OS = system()
 BYTES_PER_MEGABIT = 131072
@@ -154,7 +155,9 @@ nvidia_cmds = {
     }
 }
 
-_partitions = PyCmd(disk_partitions, postformat_fn=lambda x: [p.mountpoint for p in x])
+_partitions = PyCmd(disk_partitions, postformat_fn=lambda x: [
+    p.mountpoint for p in x if p.mountpoint != '/boot' and p.mountpoint != '/efi'
+])
 disk_cmds = {
     "disks mountpoint": _partitions,
     "disks used":
@@ -166,7 +169,9 @@ disk_cmds = {
     "disks total (bytes)":
         PyCmd(lambda: [disk_usage(p).total for p in _partitions]),
     "disks percent":
-        PyCmd(lambda: [disk_usage(p).percent for p in _partitions])
+        PyCmd(lambda: [disk_usage(p).percent for p in _partitions]),
+    "shrink path":
+        PyCmd(lambda p: p.replace(path.expanduser('~'), '~'))
 }
 
 
