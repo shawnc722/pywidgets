@@ -13,7 +13,7 @@ A sample page of widgets is included to show the capabilities without any coding
 * Modular - widgets and data are independent, so it's easy to use multiple looks for the same data source.
 ## Examples
 
-**Combining pre-made data sources and widgets:**
+**Combining pre-made data sources anvd widgets:**
 
 ```python3
 import pywidgets
@@ -59,14 +59,13 @@ This project can be installed as a package or run in place.
 
 First, ensure you have python 3.11 or higher and pip (the python install guide is [here](https://wiki.python.org/moin/BeginnersGuide/Download) if you need it).
 
-To install as a package, download the latest wheel (.whl)
-from the [releases](https://github.com/shawnc722/pywidgets/releases) section and install it, plus dependencies,
-with `python -m pip install [filename]`. By default, it won't have async widgets on Windows (the media and notification widgets, 
-currently) or any online capabilities (weather/location data from open source APIs). If you want either or both, add
+To install as a package (recommended), download the latest wheel (.whl)
+from the [releases](https://github.com/shawnc722/pywidgets/releases) section and install it in your system terminal emulator (bash, cmd, zsh, etc) with `python -m pip install [filepath]`. By default, it won't have async widgets on Windows (the media and notification widgets, 
+currently) or any online capabilities (weather/location data from open source APIs). If you want either or both (recommended), add
 `[async]`, `[web]`, or `[async,web]` immediately after the filename, for example:  
 `python -m pip install pywidgets-0.8-py3-none-any.whl[async,web]` 
 
-To run it in place, first install all the dependencies from the requirements 
+Alternatively, if you'd rather run it in place, first install all the dependencies from the requirements 
 section and then clone the project with `git clone https://github.com/shawnc722/pywidgets.git`.  
 
 It isn't required, but the default font is [Inter](https://github.com/rsms/inter) and if it's not on your system already you may want to install it. If not, a different font will be automatically chosen - though you can also just specify one yourself.

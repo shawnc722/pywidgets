@@ -444,7 +444,7 @@ class ProgressBarWidget(QWidget):
 
 class GraphWidget(pg.PlotWidget):
     def __init__(self, parent: QWidget, title: JITstring | str, getdata: Callable[[], float] | Callable[[], Sequence[float]],
-                 height: int = -1, update_interval: int = 500, time_span: int = 60000, yrange: tuple = (0, 100),
+                 height: int = -1, update_interval: int = 500, time_span: int = 60000, yrange: tuple[float, float] | None = (0, 100),
                  ylabel_str_fn: Callable[[float], str] = str, linecolor=None,
                  linecolors: None | Sequence = None, linewidth: float = None, lines: int = 1):
         """
@@ -469,8 +469,8 @@ class GraphWidget(pg.PlotWidget):
         if height == -1: height = round(parent.screen().availableGeometry().height()/10)
         if height is not None: self.setFixedHeight(height)
         self.graph_title = title
-        default_color = parent.palette().window().color()  # use parent palette because the PlotWidget sets its own
-        text_color = parent.palette().windowText().color()
+        default_color = self.palette().window().color()  # use parent palette because the PlotWidget sets its own
+        text_color = self.palette().windowText().color()
         if linecolor is None and linecolors is None: linecolor = default_color
         elif linecolors is not None:
             if linecolor is not None:
@@ -485,7 +485,7 @@ class GraphWidget(pg.PlotWidget):
         self.setTitle(title, size=f"{self.fontInfo().pixelSize()}px", color=text_color)
         self.getPlotItem().titleLabel.item.setFont(self.font())
         bott = self.getAxis('bottom')
-        bott.setStyle(showValues=False, tickLength=0)
+        bott.setStyle(showValues=False, tickLength=0, tickAlpha=0)
         bott.setPen(color=default_color)
         left = self.getAxis('left')
         left.setStyle(tickLength=0, tickAlpha=0, hideOverlappingLabels=False, tickFont=self.font())
@@ -1022,6 +1022,10 @@ def start() -> None:
     if not _use_async:
         _app.exec()
     else:
+        if qtinter is None:
+            raise ImportError(
+                "The page you're trying to run requires async functionality, but you don't have it installed. To use this page, reinstall pywidgets with the [async] option, like 'pip install pywidgets_file_path[async]"
+            )
         with qtinter.using_asyncio_from_qt():
             _app.exec()
 
