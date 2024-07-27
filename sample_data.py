@@ -68,7 +68,7 @@ system_strings = {
 }
 _linux_strs = {
     "CPU name": BashCmd("lscpu | grep 'Model name'", postformat_fn=lambda x: x.split(':', 1)[1].lstrip()),
-    "distro": BashCmd('lsb_release -ds')
+    "distro": BashCmd('cat /etc/os-release | grep "PRETTY_NAME" | cut -d = -f 2 | tr -d \'"\'')
 }
 _windows_strs = {
     "CPU name": BashCmd("wmic cpu get name", postformat_fn=lambda x: x.split('\r\n')[1]),
@@ -156,7 +156,7 @@ nvidia_cmds = {
 }
 
 _partitions = PyCmd(disk_partitions, postformat_fn=lambda x: [
-    p.mountpoint for p in x if p.mountpoint != '/boot' and p.mountpoint != '/efi'
+    p.mountpoint for p in x if p.mountpoint not in ('/boot', '/efi', '/boot/efi')
 ])
 disk_cmds = {
     "disks mountpoint": _partitions,

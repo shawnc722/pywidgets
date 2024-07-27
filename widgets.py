@@ -66,12 +66,15 @@ class Window(QtWidgets.QMainWindow):
 
             def set_loop():
                 global loop
+                if asyncio is None:
+                    raise AssertionError(
+                        "The main page's `use_async` parameter is enabled, but asyncio wasn't imported. Make sure all async requirements are installed."
+                    )
                 loop = asyncio.get_running_loop()
             run_on_app_start(set_loop)
 
         # fill out properties
         self.main_widget = None
-        self.layout = None
         self.widgets = []
         self.font_size_vh = font_size_vh
         self.main_widget = QWidget()
@@ -112,7 +115,7 @@ class Window(QtWidgets.QMainWindow):
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.right_click_menu = QtWidgets.QMenu(self)
         self.right_click_menu.setStyleSheet('''
-            QMenu::item { padding: 2% 15%; 
+            QMenu::item { padding: 2% 15%;
                           border-bottom: 1px solid;}
             QMenu::item:selected {border: 2px solid;}
         ''')
@@ -127,8 +130,8 @@ class Window(QtWidgets.QMainWindow):
 
         self.handle_resize()  # sets window size and position
 
-    def resizeEvent(self, a0: QResizeEvent):
-        super().resizeEvent(a0)
+    def resizeEvent(self, a0: QResizeEvent | None):
+        if a0: super().resizeEvent(a0)
         self.handle_resize()
 
     def set_size(self: Self, dims: QRect) -> None:
@@ -201,11 +204,10 @@ class Window(QtWidgets.QMainWindow):
         if layout is None:
             layout = QtWidgets.QVBoxLayout()
             layout.setContentsMargins(0, 0, 0, 0)
-        self.layout = layout
-        self.main_widget.setLayout(self.layout)
-        for widget in self.widgets: self.layout.addWidget(*widget)
-        if add_stretch: self.layout.addStretch()
-        if spacing is not None: self.layout.setSpacing(spacing)
+        self.main_widget.setLayout(layout)
+        for widget in self.widgets: layout.addWidget(*widget)
+        if spacing is not None: layout.setSpacing(spacing)
+        if add_stretch: layout.addStretch(1)
         self.screen().geometryChanged.connect(self.handle_resize)
         self.show()
 
@@ -327,20 +329,20 @@ class ProgressArcsWidget(QWidget):
         if self.arcpos not in self.pos_options:
             raise ValueError(f"arcpos {arcpos} is invalid: must be one of {self.pos_options}.")
         self.label_wrapper = QWidget(self)
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setDirection(self.layout.Direction.BottomToTop if 'top' in arcpos else self.layout.Direction.TopToBottom)
-        self.label_wrapper.setLayout(self.layout)
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setDirection(layout.Direction.BottomToTop if 'top' in arcpos else layout.Direction.TopToBottom)
+        self.label_wrapper.setLayout(layout)
         self.label = TextWidget(self)
         self.label.setIndent(0)
-        self.layout.setSpacing(0)
-        self.layout.addWidget(self.label)
-        self.layout.addStretch(1)
+        layout.setSpacing(0)
+        layout.addWidget(self.label)
+        layout.addStretch(1)
         self.title = title
 
         if title is not None:
             self.title_label = TextWidget(self)
-            self.layout.addWidget(self.title_label)
+            layout.addWidget(self.title_label)
 
         arcstart = 90 * self.pos_options.index(self.arcpos)
 
@@ -728,9 +730,9 @@ class _MediaListFramework(QWidget):
         super().__init__(parent)
         self.imgsize = imgsize
         self.update_interval = update_interval
-        self.layout = QtWidgets.QVBoxLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(self.layout)
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
         self.mediawidgets: dict[str, _MediaFramework] = {}
 
         if update_interval is not None:
@@ -745,13 +747,8 @@ class _MediaListFramework(QWidget):
         :param name: the name of the child widget to be removed. Should be the same as what was given to add_widget.
         """
         widget = self.mediawidgets.pop(name)
-        print(' remove widget from layout:')
-        self.layout.removeWidget(widget)
-        print(' done')
+        self.layout().removeWidget(widget)
         widget.handle_removed()
-        print(' post-removal update')
-        #self.update()
-        print(' done')
 
     def add_widget(self, widget, name: str):
         """
@@ -760,9 +757,7 @@ class _MediaListFramework(QWidget):
         :param name: the name to store the widget under.
         """
         self.mediawidgets[name] = widget
-        self.layout.addWidget(widget)
-        #self.update()
-        print(' done adding widget')
+        self.layout().addWidget(widget)
 
     def update_timelines(self):
         for widget in self.mediawidgets.values():
@@ -800,16 +795,16 @@ class _MediaFramework(QWidget):
         self.infolabel.setSizePolicy(pol.Expanding, pol.Preferred)
         self.playernamelabel = TextWidget(self, alignment="Left")
         self.playernamelabel.setScaledContents(True)
-        self.layout = QtWidgets.QHBoxLayout()
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        layout = QtWidgets.QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         self.info_layout = QtWidgets.QVBoxLayout()
         self.info_layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(self.layout)
+        self.setLayout(layout)
         self.imglabel = QtWidgets.QLabel(self)
         self.imglabel.setFixedSize(imgsize, imgsize)
         self.imglabel.setScaledContents(True)
         self.imglabel.setContentsMargins(0, 0, 0, 0)
-        self.layout.addWidget(self.imglabel)
+        layout.addWidget(self.imglabel)
         self.info_layout.addWidget(self.infolabel)
         self.info_layout.addWidget(self.playernamelabel)
 
@@ -837,13 +832,13 @@ class _MediaFramework(QWidget):
 
         self.info_layout.addLayout(self.ctrllayout)
         self.info_layout.addWidget(self.pbar)
-        self.layout.addLayout(self.info_layout)
+        layout.addLayout(self.info_layout)
         self.info_layout.setStretchFactor(self.ctrllayout, 5)
         self.info_layout.setStretchFactor(self.pbar, 1)
 
         placeholder = QWidget()  # to make the spacing equal - otherwise have to set spacing to 0 and adjust content margins
         placeholder.setMaximumSize(0, 0)
-        self.layout.addWidget(placeholder)
+        layout.addWidget(placeholder)
 
         self.setFixedHeight(imgsize)
         self.playernamelabel.setText(f"<b>{self.playername}</b>")
@@ -1008,7 +1003,7 @@ def start() -> None:
     if _app is None:
         raise AssertionError("QApplication not found, have you created a Window yet?")
     if _app.platformName() == 'wayland':  # remove when Qt updates with proper support
-        if os.environ['XDG_SESSION_DESKTOP'] == 'KDE':
+        if 'XDG_CURRENT_DESKTOP' in os.environ and 'KDE' in os.environ['XDG_CURRENT_DESKTOP']:
             print("Plasma on wayland detected, running Kwin script to handle flags wayland ignores")
             from PyQt6.QtDBus import QDBusInterface
             script = QDBusInterface('org.kde.KWin', '/Scripting', 'org.kde.kwin.Scripting')
@@ -1031,18 +1026,23 @@ def start() -> None:
 
 
 def schedule(coro, callback=None):
-    try:
-        task = loop.create_task(coro)
-    except AttributeError:  # if loop is None, but this way is hopefully faster than checking (only first call can fail)
-        raise AssertionError("One of your widgets is trying to use async functionality, which is disabled. " +
-                             "Make sure qtinter is installed and that use_async is True in your Window initialization.")
-    if callback is None:
-        def callback(task): task.cancel()
+    if loop is None:
+        raise AssertionError(
+            "One of your widgets is trying to use async functionality, which is disabled. \
+            Make sure qtinter is installed and that use_async is True in your Window initialization."
+        )
+    task = loop.create_task(coro)
+    callback = callback if callback is not None else lambda task: task.cancel()
     task.add_done_callback(callback)
     return task
 
 
-def call_threadsafe(fn: callable, *args, context=None) -> None:
+def call_threadsafe(fn: Callable, *args, context=None) -> None:
+    if loop is None:
+        raise AssertionError(
+            "One of your widgets is trying to use async functionality, which is disabled. \
+            Make sure qtinter is installed and that use_async is True in your Window initialization."
+        )
     loop.call_soon_threadsafe(fn, *args, context=context)
 
 
